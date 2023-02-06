@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="img"/>
+  <qresource prefix="icon">
+    <file>icons/layer.png</file>
+    <file>icons/run.png</file>
+    <file>icons/enlarge.png</file>
+    <file>icons/back.png</file>
+    <file>icons/setting.png</file>
+    <file>icons/close.png</file>
+  </qresource>
+</RCC>
