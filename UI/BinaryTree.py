@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QPushButton, QSizePolicy, QSpacerItem, QVBoxLayout,
                                QWidget)
 
-from BinaryTreeView.Class.MyWidget import MyWidget
-from BinaryTreeView.Buildinin.TreeView import TreeView
-from BinaryTreeView.res import resource_rc
+from DataStructView.Class.MyWidget import MyWidget
+from DataStructView.Buildinin.TreeView import TreeView
+from DataStructView.res import resource_rc
 
 
 class Ui_MainWindow(object):
