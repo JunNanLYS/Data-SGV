@@ -2,7 +2,7 @@ import sys
 from collections import defaultdict
 
 # Builtin
-from BinaryTreeView.Functions.polarAngle import polar_angle_x, polar_angle_y
+from DataStructView.Functions.polarAngle import polar_angle_x, polar_angle_y
 from math import sin, cos
 
 import PySide6

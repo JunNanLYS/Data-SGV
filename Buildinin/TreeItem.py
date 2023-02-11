@@ -14,11 +14,13 @@ class TreeNode(MyEllipseItem):
     mouse = Qt.MouseButton.NoButton  # 记录鼠标事件
     selectColor = QColor(255, 0, 0)  # 红色
 
-    def __init__(self, x=0, y=0, w=20, h=20, parent=None, left=None, right=None):
+    def __init__(self, x=0, y=0, w=25, h=25, parent=None, left=None, right=None):
         super(TreeNode, self).__init__(x, y, w, h, parent)
         self.left = left  # 左孩子
         self.right = right  # 右孩子
-        self.parent = None  # 父节点
+        self.parent = parent  # 父节点
+        self.cur_layer = 0  # 当前层
+        self.max_layer = 0  # 最大层
 
     # 鼠标点击事件
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
