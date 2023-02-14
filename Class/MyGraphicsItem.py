@@ -1,7 +1,8 @@
 import PySide6
-from PySide6.QtCore import Qt,QPointF
+from PySide6.QtCore import Qt, QPointF, QTimeLine
 from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsItem
+from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsItem, \
+    QGraphicsItemAnimation
 
 
 # 节点基类

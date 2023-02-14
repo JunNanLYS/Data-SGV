@@ -104,6 +104,7 @@ class Ui_MainWindow(object):
         self.button_preorder = QPushButton(self.widget)
         self.button_preorder.setObjectName(u"button_preorder")
         self.button_preorder.setMinimumSize(QSize(210, 70))
+        self.button_preorder.clicked.connect(self.graphicsView.button_to_preorder)
         font1 = QFont()
         font1.setFamilies([u"Modern No. 20"])
         font1.setPointSize(20)
