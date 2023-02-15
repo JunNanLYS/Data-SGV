@@ -56,6 +56,17 @@ class TreeNode(MyEllipseItem):
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         ...
 
+    def set_color(self, name: str):
+        if name == 'select':
+            self.setBrush(self.selectColor)
+            self.setPen(Qt.NoPen)
+        elif name == 'lock':
+            self.setBrush(Qt.green)
+            self.setPen(QPen(Qt.red, 3))
+        elif name == 'unselect':
+            self.setBrush(self.defaultBrush)
+            self.setPen(Qt.NoPen)
+
     def traversal_animation(self):
         """
         这个方法主要处理TreeView使用Pre,In,Post三种遍历方式
@@ -70,6 +81,14 @@ class TreeNode(MyEllipseItem):
         self.animation.timeLine().start()
 
         stopTime(1)
+
+    # 取二叉树最大深度
+    def maxDepth(self):
+        def dfs(node: TreeNode) -> int:
+            if node is None: return 0
+            cnt = 1 + max(dfs(node.left), dfs(node.right))
+            return cnt
+        return dfs(self) - 1
 
 
 # 树的连接线
@@ -88,9 +107,11 @@ class TreeLine(MyLineItem):
 
         self.change()
 
-
     # 更新线条
     def change(self):
+        """
+        使用极角公式，来计算线条两个端点的坐标
+        """
         startI = self.startI
         endI = self.endI
         # 改变节点大小以后要更新
@@ -106,7 +127,5 @@ class TreeLine(MyLineItem):
         self.setLine(line)
 
     def traversal(self):
-        """
-        实现线条变色，
-        """
-        ...
+        self.setPen(QPen(Qt.red, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        stopTime(1)

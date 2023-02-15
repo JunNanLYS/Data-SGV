@@ -125,6 +125,7 @@ class Ui_MainWindow(object):
         self.button_inorder = QPushButton(self.widget)
         self.button_inorder.setObjectName(u"button_inorder")
         self.button_inorder.setMinimumSize(QSize(210, 70))
+        self.button_inorder.clicked.connect(self.graphicsView.button_to_inorder)
         font2 = QFont()
         font2.setFamilies([u"Modern No. 20"])
         font2.setPointSize(20)
@@ -153,6 +154,7 @@ class Ui_MainWindow(object):
                                             "QPushButton:hover {\n"
                                             "	background-color: rgb(250, 250, 250);\n"
                                             "}")
+        self.button_postorder.clicked.connect(self.graphicsView.button_to_postorder)
 
         self.verticalLayout.addWidget(self.button_postorder)
 
