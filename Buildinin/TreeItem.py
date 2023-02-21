@@ -1,9 +1,12 @@
+from typing import Any
+
 import PySide6
 from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtGui import QCursor, QBrush, QColor, QPen
+from PySide6.QtGui import QCursor, QBrush, QColor, QPen, QFont
 from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEventLoop, QPoint, Property, \
     QPropertyAnimation, QLineF
-from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemAnimation
+from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemAnimation, QGraphicsTextItem, QGraphicsItem, \
+    QGraphicsSimpleTextItem
 
 # 树节点
 from BinaryTreeView.Class.MyGraphicsItem import MyEllipseItem, MyLineItem
@@ -20,7 +23,7 @@ class TreeNode(MyEllipseItem):
     selectColor = QColor(255, 0, 0)  # 红色
 
     def __init__(self, x=0, y=0, w=25, h=25, parent=None, left=None, right=None):
-        super(TreeNode, self).__init__(x, y, w, h, parent)
+        super(TreeNode, self).__init__(x, y, w, h)
         # 初始化
         self.left = left  # 左孩子
         self.right = right  # 右孩子
@@ -88,12 +91,46 @@ class TreeNode(MyEllipseItem):
             if node is None: return 0
             cnt = 1 + max(dfs(node.left), dfs(node.right))
             return cnt
+
         return dfs(self) - 1
+
+    def lock_animation(self):
+        """
+        当节点被锁定时启用该动画
+        """
+        self.animation.setScaleAt(0.5, 1.15, 1.15)
+        self.animation.setScaleAt(0.8, 1.04, 1.04)
+        self.animation.setScaleAt(1, 1.0, 1.0)
+        self.animation.timeLine().start()
+
+
+class SearchTreeNode(TreeNode):
+    def __init__(self, val: str, x=0, y=0, w=30, h=30, parent=None, left=None, right=None):
+        super(SearchTreeNode, self).__init__(x, y, w, h)
+        # 初始化
+        self.val = QGraphicsSimpleTextItem(val)  # 节点值
+
+        # 设置
+        self.setFlag(self.GraphicsItemFlag.ItemSendsGeometryChanges)  # 响应改变
+        font = QFont()
+        font.setPointSize(7)
+        font.setBold(True)
+        self.val.setFont(font)  # 字体
+        self.val.setBrush(QBrush(Qt.yellow))  # 颜色
+
+    def itemChange(self, change: PySide6.QtWidgets.QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
+        # 移动前
+        if change == self.GraphicsItemChange.ItemPositionChange:
+            r = self.boundingRect().center().x()
+            self.val.setPos(value.x() + (r - (r / 2) - 2), value.y() + (r - (r / 2)))
+        # 移动后
+        elif change == self.GraphicsItemChange.ItemPositionHasChanged:
+            ...
+        return QGraphicsItem.itemChange(self, change, value)
 
 
 # 树的连接线
 class TreeLine(MyLineItem):
-
     def __init__(self, startItem: TreeNode, endItem: TreeNode, parent=None):
         super(TreeLine, self).__init__(startItem.pos(), endItem.pos(), parent)
         # 设置Setting

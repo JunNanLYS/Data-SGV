@@ -5,10 +5,11 @@ import PySide6
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtGui import QCursor, QBrush, QColor, QPen
 from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEventLoop, QPoint, Property, \
-    QPropertyAnimation
-from PySide6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsItemAnimation
+    QPropertyAnimation, QLineF
+from PySide6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsItemAnimation, QGraphicsTextItem
 
-from DataStructView.Buildinin.TreeItem import TreeNode, TreeLine
+from DataStructView.Buildinin.TreeItem import TreeNode, TreeLine, SearchTreeNode
+from DataStructView.Class.MyGraphicsView import MyTreeView
 
 
 def stopTime(second: int):
@@ -17,7 +18,7 @@ def stopTime(second: int):
         QCoreApplication.processEvents(QEventLoop.AllEvents, 100)
 
 
-class TreeView(QGraphicsView):
+class TreeView(MyTreeView):
     def __init__(self, parent=None):
         super(TreeView, self).__init__(parent)
 
@@ -28,7 +29,7 @@ class TreeView(QGraphicsView):
         self.last_pos = QtCore.QPointF()  # 作用 -> 记录鼠标位置，移动view
         self.select_node = None  # 选中的节点
         self.lock_node = None  # 锁定的节点
-        self.interactive = True  # 场景交互
+        self.cur_line = None  # 用于线条连接
 
         # 设置Setting
         self.setScene(QGraphicsScene(self.x(), self.y(), self.width(), self.height(), self))  # 内置一个场景
@@ -42,6 +43,8 @@ class TreeView(QGraphicsView):
         self.y_spacing = self.default_node.boundingRect().center().y() + 50  # y间距
         self.x_spacing = self.default_node.boundingRect().center().x()  # x间距
         self.ratio = 2  # 间距比例(数值越大)
+
+        self.interactive = True  # 场景交互
 
     # 鼠标点击事件
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
@@ -58,13 +61,11 @@ class TreeView(QGraphicsView):
         用户选中一个节点后对该节点右键则会删除该节点，然后该节点下的所有节点都将被删除
         用户中键将记录点击的位置，长按可以移动视图
         """
-        self.mouse = event.button()
-        item = self.itemAt(event.pos())
+        self.mouse = event.button()  # 鼠标按键
+        item = self.itemAt(event.pos())  # 项
 
         if self.interactive and item is None:
-            if self.select_node: self.select_node.set_color('unselect')
-            self.select_node = None
-            self.lock_node = None
+            self.unselect_node()
 
         if event.button() == Qt.MiddleButton:
             self.last_pos = self.mapToScene(event.pos())
@@ -73,23 +74,23 @@ class TreeView(QGraphicsView):
         elif self.interactive and event.button() == Qt.MouseButton.LeftButton:
             # 第一次点击该节点
             if type(item) == TreeNode and item != self.select_node:
-                if self.select_node: self.select_node.set_color('unselect')
+                self.unselect_node()
                 self.select_node = item
                 self.select_node.set_color('select')
             # 点击被选中的节点
             elif type(item) == TreeNode and item == self.select_node:
                 # 点击的节点为被锁定的节点
                 if item == self.lock_node:
-                    if self.lock_node: self.lock_node.set_color('unselect')
-                    self.lock_node = None
-                    self.select_node = None
+                    self.unselect_node()
                     return
                 # 未被锁定的节点
                 self.lock_node = item
                 if self.select_node: self.select_node.set_color('lock')
+                self.lock_node.lock_animation()
         # 可交互 & 鼠标右键
         elif self.interactive and event.button() == Qt.MouseButton.RightButton:
             if type(item) == TreeNode and item == self.lock_node:
+                if item == self.default_node: return
                 parent = item.parent
                 # 将父节点的对应指针指向None
                 if parent.left == item:
@@ -97,6 +98,8 @@ class TreeView(QGraphicsView):
                 elif parent.right == item:
                     parent.right = None
                 self.delete_node(item)
+                self.unselect_node()
+                return
 
     # 鼠标双击事件
     def mouseDoubleClickEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
@@ -108,11 +111,13 @@ class TreeView(QGraphicsView):
             if event.button() == Qt.MouseButton.LeftButton:
                 if item.left is None:
                     self.createNode(item, 'l')
+                    self.unselect_node()
                 # print("双击左键")
             # 创建右孩子
             elif event.button() == Qt.MouseButton.RightButton:
                 if item.right is None:
                     self.createNode(item, 'r')
+                    self.unselect_node()
                 # print("双击右键")
 
     # 鼠标点击后长按移动事件
@@ -198,7 +203,7 @@ class TreeView(QGraphicsView):
             node.right = new_node
 
         new_node.cur_layer = node.cur_layer + 1
-        new_node.max_layer = max(new_node.cur_layer, node.max_layer)  # 当前层数与父节点取最大
+        new_node.max_layer = new_node.maxDepth()  # 当前层数与父节点取最大
         return new_node
 
     # 计算节点的坐标
@@ -235,6 +240,7 @@ class TreeView(QGraphicsView):
         # 动画结束
         self.traversal_color('end')
         self.interactive = True
+        self.unselect_node()
 
     def button_to_inorder(self):
         # 动画开始
@@ -246,6 +252,7 @@ class TreeView(QGraphicsView):
         # 动画结束
         self.traversal_color('end')
         self.interactive = True
+        self.unselect_node()
 
     def button_to_postorder(self):
         # 动画开始
@@ -257,6 +264,7 @@ class TreeView(QGraphicsView):
         # 动画结束
         self.traversal_color('end')
         self.interactive = True
+        self.unselect_node()
 
     # 前序遍历
     def preorder_traversal(self, node: TreeNode) -> None:
@@ -340,3 +348,187 @@ class TreeView(QGraphicsView):
             self.scene().removeItem(x.p_line)
             self.scene().removeItem(x)
 
+    # 将节点从选中状态和锁定状态切换至无状态
+    def unselect_node(self):
+        if self.select_node:
+            self.select_node.set_color('unselect')
+            self.select_node = None
+
+        if self.lock_node:
+            self.lock_node.set_color('unselect')
+            self.lock_node = None
+
+
+# 二叉搜索树View
+class BinarySearchTreeView(MyTreeView):
+    """
+    只要实现添加、删除、搜索就行，遍历已经被TreeView实现了。
+    """
+
+    def __init__(self, parent=None):
+        super(BinarySearchTreeView, self).__init__(parent)
+
+        # 初始化
+        self.node_vals = set()
+        self.first_node = None
+        self.default_node = SearchTreeNode("")  # 用于计算半径
+        self.y_spacing = self.default_node.boundingRect().center().y() + 50  # y间距
+        self.x_spacing = self.default_node.boundingRect().center().x()  # x间距
+        self.ratio = 2  # 间距比例(数值越大)
+
+    def add(self, s: str) -> None:
+        """
+        从lineEdit中获取要添加的节点的值
+        若s中有多个值，则一个一个慢慢添加
+        使用SearchTreeNode 将值以及要添加的位置传递给它
+        """
+        if not s: return
+        val = self.split(s)
+        for v in val:
+            self.create_node(v)
+
+    # 重绘
+    def redraw(self):
+        """
+        这个方法主要时防止二叉树节点的增多带来的交叉，只有在最后一层节点增加时才调用该方法
+        """
+        root = self.first_node
+        q = []
+        tree_max_layer = root.maxDepth()
+        if root.left: q.append((root.left, 'l'))
+        if root.right: q.append((root.right, 'r'))
+
+        while q:
+            temp = []
+            for node, directions in q:
+                node.max_layer = tree_max_layer
+                node.setPos(self.calculated_pos(node, directions))
+                self.change_node_line(node)
+                if node.left:
+                    temp.append((node.left, 'l'))
+                if node.right:
+                    temp.append((node.right, 'r'))
+            q = temp
+
+
+    def get_node(self, parent_node: SearchTreeNode, directions: str, val: str) -> SearchTreeNode:
+        """
+        1. 返回新的树节点
+        2. 将父节点与新节点连接
+        3. 将节点连接
+        """
+        if directions != "l" and directions != "r":
+            raise TypeError("direction can only 'l' or 'r'")
+        new_node = SearchTreeNode(val)
+        new_node.parent = parent_node
+        new_line = TreeLine(parent_node, new_node)
+        new_node.p_line = new_line
+        if directions == "l":
+            parent_node.left = new_node
+            parent_node.l_line = new_line
+        else:
+            parent_node.right = new_node
+            parent_node.r_line = new_line
+
+        new_node.cur_layer = parent_node.cur_layer + 1
+        new_node.max_layer = self.first_node.maxDepth()
+        return new_node
+
+    # 创建节点
+    def create_node(self, val: str) -> None:
+        parent_node, directions = self.insert_node(val)
+        # 二叉搜索树的第一个节点，固定在某一个位置上
+        if (not parent_node) and (not directions):
+            pos = QPointF(0, -300)
+            new_node = SearchTreeNode(val)
+            new_node.setPos(pos)
+            self.scene().addItem(new_node)
+            self.scene().addItem(new_node.val)
+            self.node_vals.add(val)
+            self.first_node = new_node
+            return
+        new_node = self.get_node(parent_node, directions, val)
+        pos = self.calculated_pos(new_node, directions)
+        new_node.setPos(pos)
+
+        # 将节点 & 值 & 线条 添加至场景
+        self.scene().addItem(new_node)
+        self.scene().addItem(new_node.val)
+        self.scene().addItem(new_node.p_line)
+
+        self.redraw()
+
+    # 计算两个节点的极角坐标
+    def calculated_pos(self, node: TreeNode, directions: str) -> QPointF:
+        # 计算间隔比例
+        space_between = pow(self.ratio, node.max_layer - (node.cur_layer - 1)) - 2
+        # x坐标 = 父节点x坐标 +/- (间距比例 * x间隔) +/- 节点的半径
+        # y坐标 = 父节点的y坐标 +/- 固定的行距
+        r = node.boundingRect().center().x()
+        x_parent = node.parent.pos().x()
+        y_parent = node.parent.pos().y()
+        x = x_parent - (space_between * self.x_spacing) - r if directions == 'l' else x_parent + (
+                space_between * self.x_spacing) + r
+        y = y_parent + self.y_spacing
+        pos = QPointF(x, y)
+        return pos
+
+    # 查找插入位置
+    def insert_node(self, val: str):
+        """
+        插入方法
+        查找节点插入的位置同时完成插入
+
+        若该为第一个节点则在插入至默认位置
+        """
+
+        # 查找插入位置
+        def insert_position(node: SearchTreeNode, cur_val: str):
+            if int(cur_val) < int(node.val.text()):
+                if node.left is None: return node, "l"
+                return insert_position(node.left, cur_val)
+            elif int(cur_val) > int(node.val.text()):
+                if node.right is None: return node, "r"
+                return insert_position(node.right, cur_val)
+            else:
+                raise TypeError("insert_position: 不应该传入相同的值")
+
+        # 第一个节点
+        if not self.node_vals:
+            return "", ""
+        else:
+            return insert_position(self.first_node, val)
+
+    def delete(self):
+        ...
+
+    def search(self):
+        ...
+
+    def split(self, s: str) -> list[str]:
+        i, n = 0, len(s)
+        res = []
+        while i < n:
+            c = s[i]
+            num = ""
+            if c != ',' and c != '，' and (not c.isdigit()):
+                print("错误字符")
+                return []
+                # raise TypeError("not digit and comma")
+            while i < n and c.isdigit():
+                c = s[i]
+                num += c
+                i += 1
+            while i < n and c == ',' or c == '，':
+                c = s[i]
+                i += 1
+            if num: res.append(num)
+        return res
+
+    def change_node_line(self, node: TreeNode):
+        if node.parent:
+            node.p_line.change()
+        if node.left:
+            node.l_line.change()
+        if node.right:
+            node.r_line.change()
