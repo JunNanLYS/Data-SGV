@@ -43,21 +43,21 @@ class TreeNode(MyEllipseItem):
         self.animation.setItem(self)
         self.animation.setTimeLine(self.timeLine)
 
-    # 鼠标点击事件
-    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        ...
+    def delete_animation(self):
+        self.animation.setScaleAt(0, 1.0, 1.0)
+        self.animation.setScaleAt(1, 0.0, 0.0)
+        self.animation.timeLine().start()
 
-    # 鼠标双击事件
-    def mouseDoubleClickEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        ...
+        stopTime(1)
 
-    # 鼠标点击后长按移动事件
-    def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        ...
-
-    # 鼠标释放事件
-    def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        ...
+    def lock_animation(self):
+        """
+        当节点被锁定时启用该动画
+        """
+        self.animation.setScaleAt(0.5, 1.15, 1.15)
+        self.animation.setScaleAt(0.8, 1.04, 1.04)
+        self.animation.setScaleAt(1, 1.0, 1.0)
+        self.animation.timeLine().start()
 
     def set_color(self, name: str):
         if name == 'select':
@@ -85,6 +85,18 @@ class TreeNode(MyEllipseItem):
 
         stopTime(1)
 
+    def itemChange(self, change: PySide6.QtWidgets.QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
+        if change == self.GraphicsItemChange.ItemPositionChange:
+            ...
+        if change == self.GraphicsItemChange.ItemPositionHasChanged:
+            if self.l_line:
+                self.l_line.change()
+            if self.r_line:
+                self.r_line.change()
+            if self.p_line:
+                self.p_line.change()
+        return QGraphicsItem.itemChange(self, change, value)
+
     # 取二叉树最大深度
     def maxDepth(self):
         def dfs(node: TreeNode) -> int:
@@ -94,14 +106,21 @@ class TreeNode(MyEllipseItem):
 
         return dfs(self) - 1
 
-    def lock_animation(self):
-        """
-        当节点被锁定时启用该动画
-        """
-        self.animation.setScaleAt(0.5, 1.15, 1.15)
-        self.animation.setScaleAt(0.8, 1.04, 1.04)
-        self.animation.setScaleAt(1, 1.0, 1.0)
-        self.animation.timeLine().start()
+    # 鼠标点击事件
+    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        ...
+
+    # 鼠标双击事件
+    def mouseDoubleClickEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        ...
+
+    # 鼠标点击后长按移动事件
+    def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        ...
+
+    # 鼠标释放事件
+    def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        ...
 
 
 class SearchTreeNode(TreeNode):
@@ -125,8 +144,22 @@ class SearchTreeNode(TreeNode):
             self.val.setPos(value.x() + (r - (r / 2) - 2), value.y() + (r - (r / 2)))
         # 移动后
         elif change == self.GraphicsItemChange.ItemPositionHasChanged:
-            ...
+            if self.l_line:
+                self.l_line.change()
+            if self.r_line:
+                self.r_line.change()
+            if self.p_line:
+                self.p_line.change()
         return QGraphicsItem.itemChange(self, change, value)
+
+    def move_animation(self, end: QPointF):
+        """
+        接收一个参数 end
+        实现节点从一个点移动到另一个点的动画
+        """
+        self.animation.setPosAt(1, end)
+        self.animation.timeLine().start()
+        stopTime(1)
 
 
 # 树的连接线
@@ -141,7 +174,6 @@ class TreeLine(MyLineItem):
         self.startP = startItem.pos()  # 父节点坐标(position)
         self.endP = endItem.pos()  # 孩子节点坐标(position)
         self.curScene = None  # item所在的scene
-
         self.change()
 
     # 更新线条

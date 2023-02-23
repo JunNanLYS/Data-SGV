@@ -403,13 +403,11 @@ class BinarySearchTreeView(MyTreeView):
             for node, directions in q:
                 node.max_layer = tree_max_layer
                 node.setPos(self.calculated_pos(node, directions))
-                self.change_node_line(node)
                 if node.left:
                     temp.append((node.left, 'l'))
                 if node.right:
                     temp.append((node.right, 'r'))
             q = temp
-
 
     def get_node(self, parent_node: SearchTreeNode, directions: str, val: str) -> SearchTreeNode:
         """
@@ -436,6 +434,8 @@ class BinarySearchTreeView(MyTreeView):
 
     # 创建节点
     def create_node(self, val: str) -> None:
+        if val in self.node_vals: return
+        self.node_vals.add(val)
         parent_node, directions = self.insert_node(val)
         # 二叉搜索树的第一个节点，固定在某一个位置上
         if (not parent_node) and (not directions):
@@ -494,13 +494,101 @@ class BinarySearchTreeView(MyTreeView):
                 raise TypeError("insert_position: 不应该传入相同的值")
 
         # 第一个节点
-        if not self.node_vals:
+        if not self.first_node:
             return "", ""
         else:
             return insert_position(self.first_node, val)
 
-    def delete(self):
-        ...
+    def delete(self, val: str) -> None:
+        """
+        该方法不返回任何值
+
+        1. 找到要delete的node
+        2. node与父节点断开连接
+        3. 删除node
+        4. 处理node的子树
+            1. 若node左右非空 -> 右子树替代原node位置，不断找右子树的最左节点，将原node的左子树连接
+            2. 若node左空 -> 连接右子树
+            3. 若node右空 -> 连接左子树
+        5. node下的所有节点的 cur_layer 要-1
+        6. 二叉搜索树所有节点的 max_layer 要重新赋值
+
+        在删除节点的过程中要进行动画以达到效果
+        1. 原node被删除
+        2. 将要连接的子树移动到原node的位置
+        3. 连接子树
+
+        在该方法运行结束时要记得重绘二叉搜索树，因为二叉搜索树可能会因为delete，其最大深度可能会变大
+        """
+
+        # 辅助函数，用于搜索要被删除的节点
+        def dfs(node: SearchTreeNode) -> SearchTreeNode:
+            cur_val = node.val.text()
+            if cur_val == val:
+                return node
+            elif cur_val < val:
+                return dfs(node.right)
+            else:
+                return dfs(node.left)
+
+        def delete_node_data(node: SearchTreeNode) -> str:
+            """
+            这是一个辅助函数，减少重复代码，将节点间的连接断开
+            移除节点相关的item
+            返回一个node在parent的哪个方向
+            """
+            parent = node.parent
+            node.parent = None
+            node.left = None
+            node.right = None
+            direction = ""
+
+            # 与父节点断开
+            if parent.left == node:
+                parent.left = None
+                parent.l_line = None
+                direction = "l"
+            elif parent.right == node:
+                parent.right = None
+                parent.r_line = None
+                direction = "r"
+            else:
+                # 不应该出现这种情况
+                # 父节点左或者右一定是要删除的node
+                raise TypeError("The left and right nodes of the parent node are not the nodes to be deleted")
+
+            # 删除节点相关
+            if node.l_line:  # 左线
+                self.scene().removeItem(node.l_line)
+            if node.r_line:  # 右线
+                self.scene().removeItem(node.r_line)
+            if node.p_line:  # 父线
+                self.scene().removeItem(node.p_line)
+            self.scene().removeItem(node.val)  # 值
+            self.scene().removeItem(node)  # 节点
+
+            return direction
+
+        node = dfs(self.first_node)  # 要删除的节点
+        pos = node.pos()  # 节点位置
+
+        # 将下面的节点接上
+        if node.left and node.right:
+            connect = node.right  # 替代原节点
+            cur = node.right  # 右节点的最左端
+            while cur.left:
+                cur = cur.left
+            node.delete_animation()  # 删除动画
+            delete_node_data(node)  # 清除该节点相关的数据
+
+        elif not node.left:
+            ...
+        elif not node.right:
+            ...
+        else:
+            # 不应该出现这种情况
+            # 以上已经枚举了所有情况了
+            raise TypeError
 
     def search(self):
         ...
@@ -524,11 +612,3 @@ class BinarySearchTreeView(MyTreeView):
                 i += 1
             if num: res.append(num)
         return res
-
-    def change_node_line(self, node: TreeNode):
-        if node.parent:
-            node.p_line.change()
-        if node.left:
-            node.l_line.change()
-        if node.right:
-            node.r_line.change()
