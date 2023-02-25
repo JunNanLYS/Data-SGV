@@ -1,11 +1,10 @@
-import gc
-import time
+from collections import deque
 
 import PySide6
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtGui import QCursor, QBrush, QColor, QPen
 from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEventLoop, QPoint, Property, \
-    QPropertyAnimation, QLineF
+    QPropertyAnimation, QLineF, Slot, Signal
 from PySide6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsItemAnimation, QGraphicsTextItem
 
 from DataStructView.Buildinin.TreeItem import TreeNode, TreeLine, SearchTreeNode
@@ -16,6 +15,25 @@ def stopTime(second: int):
     endTime = QTime.currentTime().addSecs(second)
     while QTime.currentTime() < endTime:
         QCoreApplication.processEvents(QEventLoop.AllEvents, 100)
+
+
+def connect_node(parent: TreeNode, child: TreeNode, line, direction: str, **kwargs) -> None:
+    """
+    这是一个辅助函数，它的作用是连接节点
+
+    1. 将节点的 parent left right 更新
+    2. 将节点的 p_line l_line r_line 更新
+    """
+    if direction == 'l':
+        parent.left = child
+        parent.l_line = line
+        child.parent = parent
+        child.p_line = line
+    else:
+        parent.right = child
+        parent.r_line = line
+        child.parent = parent
+        child.p_line = line
 
 
 class TreeView(MyTreeView):
@@ -174,22 +192,18 @@ class TreeView(MyTreeView):
         这个方法主要时防止二叉树节点的增多带来的交叉，只有在最后一层节点增加时才调用该方法
         """
         root = self.default_node
-        q = []
+        q = deque()
         tree_max_layer = root.maxDepth()
         if root.left: q.append((root.left, 'l'))
         if root.right: q.append((root.right, 'r'))
 
         while q:
-            temp = []
-            for node, directions in q:
-                node.max_layer = tree_max_layer
-                node.setPos(self.calculated_pos(node, directions))
-                self.change_node_line(node)
-                if node.left:
-                    temp.append((node.left, 'l'))
-                if node.right:
-                    temp.append((node.right, 'r'))
-            q = temp
+            node, directions = q.popleft()
+            node.max_layer = tree_max_layer
+            node.setPos(self.calculated_pos(node, directions))
+            self.change_node_line(node)
+            if node.left: q.append((node.left, 'l'))
+            if node.right: q.append((node.right, 'r'))
 
     # 创建一个新的节点并将数据处理好
     def get_newNode(self, node: TreeNode, directions: str) -> TreeNode:
@@ -384,7 +398,9 @@ class BinarySearchTreeView(MyTreeView):
         """
         if not s: return
         val = self.split(s)
+        print(f"输入的值: {val}")
         for v in val:
+            if v in self.node_vals: continue
             self.create_node(v)
 
     # 重绘
@@ -402,6 +418,7 @@ class BinarySearchTreeView(MyTreeView):
             temp = []
             for node, directions in q:
                 node.max_layer = tree_max_layer
+                node.cur_layer = node.parent.cur_layer + 1
                 node.setPos(self.calculated_pos(node, directions))
                 if node.left:
                     temp.append((node.left, 'l'))
@@ -459,9 +476,11 @@ class BinarySearchTreeView(MyTreeView):
         self.redraw()
 
     # 计算两个节点的极角坐标
-    def calculated_pos(self, node: TreeNode, directions: str) -> QPointF:
+    def calculated_pos(self, node: TreeNode, directions: str, **kwargs) -> QPointF:
+        max_layer = kwargs["max_layer"] if "max_layer" in kwargs else node.max_layer
+
         # 计算间隔比例
-        space_between = pow(self.ratio, node.max_layer - (node.cur_layer - 1)) - 2
+        space_between = pow(self.ratio, max_layer - (node.cur_layer - 1)) - 2
         # x坐标 = 父节点x坐标 +/- (间距比例 * x间隔) +/- 节点的半径
         # y坐标 = 父节点的y坐标 +/- 固定的行距
         r = node.boundingRect().center().x()
@@ -510,8 +529,7 @@ class BinarySearchTreeView(MyTreeView):
             1. 若node左右非空 -> 右子树替代原node位置，不断找右子树的最左节点，将原node的左子树连接
             2. 若node左空 -> 连接右子树
             3. 若node右空 -> 连接左子树
-        5. node下的所有节点的 cur_layer 要-1
-        6. 二叉搜索树所有节点的 max_layer 要重新赋值
+        5. 二叉搜索树所有节点的 max_layer || cur_layer 要重新赋值
 
         在删除节点的过程中要进行动画以达到效果
         1. 原node被删除
@@ -523,10 +541,10 @@ class BinarySearchTreeView(MyTreeView):
 
         # 辅助函数，用于搜索要被删除的节点
         def dfs(node: SearchTreeNode) -> SearchTreeNode:
-            cur_val = node.val.text()
-            if cur_val == val:
+            cur_val = int(node.val.text())
+            if cur_val == int(val):
                 return node
-            elif cur_val < val:
+            elif cur_val < int(val):
                 return dfs(node.right)
             else:
                 return dfs(node.left)
@@ -544,18 +562,14 @@ class BinarySearchTreeView(MyTreeView):
             direction = ""
 
             # 与父节点断开
-            if parent.left == node:
+            if parent and parent.left == node:
                 parent.left = None
                 parent.l_line = None
                 direction = "l"
-            elif parent.right == node:
+            elif parent and parent.right == node:
                 parent.right = None
                 parent.r_line = None
                 direction = "r"
-            else:
-                # 不应该出现这种情况
-                # 父节点左或者右一定是要删除的node
-                raise TypeError("The left and right nodes of the parent node are not the nodes to be deleted")
 
             # 删除节点相关
             if node.l_line:  # 左线
@@ -569,46 +583,179 @@ class BinarySearchTreeView(MyTreeView):
 
             return direction
 
+        def bfs_node_move(root: SearchTreeNode) -> None:
+            """
+            使用广搜将节点一个一个移动到坐标位置，突出二叉树删除的过程
+            """
+            q = deque()
+            if root.left: q.append((root.left, 'l'))
+            if root.right: q.append((root.right, 'r'))
+            while q:
+                node, direction = q.popleft()
+                pos = self.calculated_pos(node, direction)
+                node.move_animation(pos)
+                if node.left: q.append((node.left, 'l'))
+                if node.right: q.append((node.right, 'r'))
+
         node = dfs(self.first_node)  # 要删除的节点
+        parent = node.parent
         pos = node.pos()  # 节点位置
 
-        # 将下面的节点接上
+        # 以下为二叉搜索树删除逻辑
+        # 左右非空
         if node.left and node.right:
-            connect = node.right  # 替代原节点
-            cur = node.right  # 右节点的最左端
-            while cur.left:
-                cur = cur.left
+            node_right = node.right
+            node_left = node.left
+            r_max_l = node.right  # 右节点的最左端
+            while r_max_l.left:
+                r_max_l = r_max_l.left
             node.delete_animation()  # 删除动画
-            delete_node_data(node)  # 清除该节点相关的数据
+            direction = delete_node_data(node)  # 清除该节点相关的数据
 
+            # 左节点连接右节点的最左叶子节点的线条
+            left_to_right = TreeLine(r_max_l, node_left)
+
+            # 右节点
+            if parent:
+                right_to_parent = TreeLine(parent, node_right)  # 右节点连接父节点线条
+                connect_node(parent, node_right, right_to_parent, direction)  # 节点属性赋值
+                self.scene().addItem(right_to_parent)  # 线条添加至场景
+            connect_node(r_max_l, node_left, left_to_right, 'l')
+            self.scene().addItem(left_to_right)
+
+            node_right.move_animation(pos)  # 移动动画
+            if not parent:
+                self.first_node = node_right
+            self.update_node()  # 更新子树的cur_layer 和 max_layer
+            bfs_node_move(node_right)  # 右节点下的所有节点移动到坐标
+        # 左为空
         elif not node.left:
-            ...
+            # 左为空 将右子树移动到原node位置
+            node_right = node.right
+            node.delete_animation()  # 删除动画
+            _ = delete_node_data(node)  # 删除相关属性
+            if parent:
+                line = TreeLine(parent, node_right)
+                connect_node(parent, node_right, line, 'r')
+                self.scene().addItem(line)
+            node_right.move_animation(pos)
+            self.update_node()
+            bfs_node_move(node_right)
+        # 右为空
         elif not node.right:
-            ...
+            # 右为空 将左子树移动到原node位置
+            node_left = node.left
+            node.delete_animation()  # 删除动画
+            _ = delete_node_data(node)  # 删除相关属性
+            if parent:
+                line = TreeLine(parent, node_left)
+                connect_node(parent, node_left, line, 'l')
+                self.scene().addItem(line)
+            node_left.move_animation(pos)
+            self.update_node()
+            bfs_node_move(node_left)
         else:
             # 不应该出现这种情况
             # 以上已经枚举了所有情况了
             raise TypeError
 
-    def search(self):
-        ...
+    # 更新节点属性
+    def update_node(self) -> None:
+        """
+        CN
+        1. 更新节点当前层
+        2. 更新节点最大深度
+
+        EN
+        1. update current layer
+        2. update maximum depth layer
+        """
+        root = self.first_node
+        max_layer = root.maxDepth()  # 最大深度
+        root.cur_layer = 0
+        root.max_layer = max_layer
+
+        def bfs(node: SearchTreeNode):
+            q = deque()
+            if node.left: q.append(node.left)
+            if node.right: q.append(node.right)
+            while q:
+                node = q.popleft()
+                node.max_layer = max_layer
+                node.cur_layer = node.parent.cur_layer + 1
+                if node.left: q.append(node.left)
+                if node.right: q.append(node.right)
+
+        bfs(root)
+
+    def search(self, val: str):
+        """
+        无返回值，主要展示二叉搜索树查找的过程
+
+        1. 算法使用 DFS
+        2. 路过的节点与要查找的节点颜色不一样 (这里路过的节点指的是遍历路径)
+        """
+        print("BinarySearchTree: search函数运行中")
+        node = self.first_node
+        val = int(val)
+
+        def dfs(node: SearchTreeNode):
+            """
+            3种情况，需要对不同情况做出不同行为
+
+            1. 找到节点了
+                使用特殊颜色标记
+                结束递归
+            2. 当前节点的值小了
+                使用路径颜色标记
+                向右查找
+            3. 当前节点的值大了
+                使用路径颜色标记
+                向左查找
+            """
+            cur_val = int(node.val.text())
+
+            # 找到值了
+            if cur_val == val:
+                node.set_color('select')
+                return
+            # 向右找
+            elif cur_val < val:
+                node.set_color('path')
+                node.r_line.traversal()
+                dfs(node.right)
+            # 向左找
+            else:
+                node.set_color('path')
+                node.l_line.traversal()
+                dfs(node.left)
+
+        dfs(node)
+        print("BinarySearchTree: search函数结束运行")
 
     def split(self, s: str) -> list[str]:
-        i, n = 0, len(s)
+        """
+        用于处理用户输入的非法字符
+
+        一共会出现以下几种情况
+        1. 有非法字符
+            非法字符混杂在逗号中
+            非法字符混杂在数字中
+                跳过非法字符直到 s[i] == digit 或者 s[i] == ',' or '，' 或者 i == n
+        2. 无非法字符
+            正常查找
+        """
         res = []
+        i, n = 0, len(s)
         while i < n:
-            c = s[i]
-            num = ""
-            if c != ',' and c != '，' and (not c.isdigit()):
-                print("错误字符")
-                return []
-                # raise TypeError("not digit and comma")
-            while i < n and c.isdigit():
-                c = s[i]
-                num += c
+            while i < n and (s[i] == ',' or s[i] == '，' or (s[i] != ',' and s[i] != '，' and not(s[i].isdigit()))):
                 i += 1
-            while i < n and c == ',' or c == '，':
-                c = s[i]
+            i = i
+            c = ""
+            while i < n and (s[i].isdigit() or (s[i] != ',' and s[i] != '，')):
+                if s[i].isdigit():
+                    c += s[i]
                 i += 1
-            if num: res.append(num)
+            if c: res.append(c)
+            i = i
         return res

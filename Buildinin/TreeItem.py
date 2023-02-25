@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemAnimation, QGraphi
     QGraphicsSimpleTextItem
 
 # 树节点
-from BinaryTreeView.Class.MyGraphicsItem import MyEllipseItem, MyLineItem
+from DataStructView.Class.MyGraphicsItem import MyEllipseItem, MyLineItem
 from DataStructView.Functions.polarAngle import polar_angle_x, polar_angle_y
 
 
@@ -59,14 +59,14 @@ class TreeNode(MyEllipseItem):
         self.animation.setScaleAt(1, 1.0, 1.0)
         self.animation.timeLine().start()
 
-    def set_color(self, name: str):
-        if name == 'select':
+    def set_color(self, state: str):
+        if state == 'select':
             self.setBrush(self.selectColor)
             self.setPen(Qt.NoPen)
-        elif name == 'lock':
+        elif state == 'lock':
             self.setBrush(Qt.green)
             self.setPen(QPen(Qt.red, 3))
-        elif name == 'unselect':
+        elif state == 'unselect':
             self.setBrush(self.defaultBrush)
             self.setPen(Qt.NoPen)
 
@@ -135,13 +135,15 @@ class SearchTreeNode(TreeNode):
         font.setPointSize(7)
         font.setBold(True)
         self.val.setFont(font)  # 字体
-        self.val.setBrush(QBrush(Qt.yellow))  # 颜色
+        self.val.setBrush(QBrush(Qt.black))  # 颜色
 
     def itemChange(self, change: PySide6.QtWidgets.QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         # 移动前
         if change == self.GraphicsItemChange.ItemPositionChange:
             r = self.boundingRect().center().x()
-            self.val.setPos(value.x() + (r - (r / 2) - 2), value.y() + (r - (r / 2)))
+            w = self.val.boundingRect().center().x()
+            h = self.val.boundingRect().center().y()
+            self.val.setPos(value.x() + r - w, value.y() + r - h)
         # 移动后
         elif change == self.GraphicsItemChange.ItemPositionHasChanged:
             if self.l_line:
@@ -157,9 +159,28 @@ class SearchTreeNode(TreeNode):
         接收一个参数 end
         实现节点从一个点移动到另一个点的动画
         """
-        self.animation.setPosAt(1, end)
-        self.animation.timeLine().start()
+        animation = QGraphicsItemAnimation()
+        timeLine = QTimeLine(500)  # 动画总时长
+        animation.setItem(self)
+        animation.setTimeLine(timeLine)
+        animation.setPosAt(0, self.pos())
+        animation.setPosAt(1, end)
+        animation.timeLine().start()
         stopTime(1)
+
+    def set_color(self, state: str):
+        """
+        传入状态，根据状态改变节点当前的外观
+        """
+        # 路径颜色
+        if state == 'path':
+            self.setBrush(Qt.white)
+            self.setPen(QPen(Qt.red, 3))
+        # 选中颜色
+        elif state == 'select':
+            self.setBrush(Qt.red)
+            self.setPen(QPen(Qt.NoPen))
+
 
 
 # 树的连接线
