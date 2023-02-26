@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'Graph.ui'
+## Form generated from reading UI file 'Graph_ui.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.4.0
 ##
@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QPushButton, QSizePolicy, QSpacerItem, QTextBrowser,
                                QVBoxLayout, QWidget)
 
-from DataStructView.Buildinin.GraphView import GraphView
-from DataStructView.Class.MyWidget import MyWidget
-from DataStructView.res import resource_rc
+from DataStructureGraphicsView.Buildinin.GraphView import GraphView
+from DataStructureGraphicsView.Class.MyWidget import MyWidget
+from DataStructureGraphicsView.res import resource_rc
 
 
 class Ui_MainWindow(object):
