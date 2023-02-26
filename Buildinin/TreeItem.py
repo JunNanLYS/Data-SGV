@@ -9,8 +9,8 @@ from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemAnimation, QGraphi
     QGraphicsSimpleTextItem
 
 # 树节点
-from DataStructView.Class.MyGraphicsItem import MyEllipseItem, MyLineItem
-from DataStructView.Functions.polarAngle import polar_angle_x, polar_angle_y
+from DataStructureGraphicsView.Class.MyGraphicsItem import MyEllipseItem, MyLineItem
+from DataStructureGraphicsView.Functions.polarAngle import polar_angle_x, polar_angle_y
 
 
 def stopTime(second: int):
@@ -177,10 +177,16 @@ class SearchTreeNode(TreeNode):
             self.setBrush(Qt.white)
             self.setPen(QPen(Qt.red, 3))
         # 选中颜色
-        elif state == 'select':
+        elif state == 'select' or state == 'traversal':
             self.setBrush(Qt.red)
             self.setPen(QPen(Qt.NoPen))
+        elif state == 'default':
+            self.setBrush(self.defaultBrush)
+            self.setPen(QPen(Qt.NoPen))
 
+    def path_animation(self):
+        self.set_color('path')
+        stopTime(1)
 
 
 # 树的连接线
@@ -219,3 +225,13 @@ class TreeLine(MyLineItem):
     def traversal(self):
         self.setPen(QPen(Qt.red, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         stopTime(1)
+
+    def set_color(self, state: str):
+        if state == "default":
+            self.setPen(QPen(Qt.black, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        elif state == "traversal":
+            self.setPen(QPen(Qt.red, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        elif state == "path":
+            self.setPen(QPen(Qt.red, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        else:
+            raise TypeError(f"not have {state}")

@@ -1,14 +1,14 @@
 from collections import deque
 
 import PySide6
-from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6 import QtCore, QtGui
 from PySide6.QtGui import QCursor, QBrush, QColor, QPen
-from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEventLoop, QPoint, Property, \
-    QPropertyAnimation, QLineF, Slot, Signal
-from PySide6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsItemAnimation, QGraphicsTextItem
+from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEventLoop, Property, \
+    QPropertyAnimation, QLineF
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
 
-from DataStructView.Buildinin.TreeItem import TreeNode, TreeLine, SearchTreeNode
-from DataStructView.Class.MyGraphicsView import MyTreeView
+from DataStructureGraphicsView.Buildinin.TreeItem import TreeNode, TreeLine, SearchTreeNode
+from DataStructureGraphicsView.Class.MyGraphicsView import MyTreeView
 
 
 def stopTime(second: int):
@@ -403,52 +403,6 @@ class BinarySearchTreeView(MyTreeView):
             if v in self.node_vals: continue
             self.create_node(v)
 
-    # 重绘
-    def redraw(self):
-        """
-        这个方法主要时防止二叉树节点的增多带来的交叉，只有在最后一层节点增加时才调用该方法
-        """
-        root = self.first_node
-        q = []
-        tree_max_layer = root.maxDepth()
-        if root.left: q.append((root.left, 'l'))
-        if root.right: q.append((root.right, 'r'))
-
-        while q:
-            temp = []
-            for node, directions in q:
-                node.max_layer = tree_max_layer
-                node.cur_layer = node.parent.cur_layer + 1
-                node.setPos(self.calculated_pos(node, directions))
-                if node.left:
-                    temp.append((node.left, 'l'))
-                if node.right:
-                    temp.append((node.right, 'r'))
-            q = temp
-
-    def get_node(self, parent_node: SearchTreeNode, directions: str, val: str) -> SearchTreeNode:
-        """
-        1. 返回新的树节点
-        2. 将父节点与新节点连接
-        3. 将节点连接
-        """
-        if directions != "l" and directions != "r":
-            raise TypeError("direction can only 'l' or 'r'")
-        new_node = SearchTreeNode(val)
-        new_node.parent = parent_node
-        new_line = TreeLine(parent_node, new_node)
-        new_node.p_line = new_line
-        if directions == "l":
-            parent_node.left = new_node
-            parent_node.l_line = new_line
-        else:
-            parent_node.right = new_node
-            parent_node.r_line = new_line
-
-        new_node.cur_layer = parent_node.cur_layer + 1
-        new_node.max_layer = self.first_node.maxDepth()
-        return new_node
-
     # 创建节点
     def create_node(self, val: str) -> None:
         if val in self.node_vals: return
@@ -469,6 +423,7 @@ class BinarySearchTreeView(MyTreeView):
         new_node.setPos(pos)
 
         # 将节点 & 值 & 线条 添加至场景
+        self.line_animation(new_node.p_line, state="default")
         self.scene().addItem(new_node)
         self.scene().addItem(new_node.val)
         self.scene().addItem(new_node.p_line)
@@ -491,32 +446,6 @@ class BinarySearchTreeView(MyTreeView):
         y = y_parent + self.y_spacing
         pos = QPointF(x, y)
         return pos
-
-    # 查找插入位置
-    def insert_node(self, val: str):
-        """
-        插入方法
-        查找节点插入的位置同时完成插入
-
-        若该为第一个节点则在插入至默认位置
-        """
-
-        # 查找插入位置
-        def insert_position(node: SearchTreeNode, cur_val: str):
-            if int(cur_val) < int(node.val.text()):
-                if node.left is None: return node, "l"
-                return insert_position(node.left, cur_val)
-            elif int(cur_val) > int(node.val.text()):
-                if node.right is None: return node, "r"
-                return insert_position(node.right, cur_val)
-            else:
-                raise TypeError("insert_position: 不应该传入相同的值")
-
-        # 第一个节点
-        if not self.first_node:
-            return "", ""
-        else:
-            return insert_position(self.first_node, val)
 
     def delete(self, val: str) -> None:
         """
@@ -580,6 +509,7 @@ class BinarySearchTreeView(MyTreeView):
                 self.scene().removeItem(node.p_line)
             self.scene().removeItem(node.val)  # 值
             self.scene().removeItem(node)  # 节点
+            self.node_vals.remove(val)  # 删除node_vals中的元素，这样可以添加之前添加过的元素
 
             return direction
 
@@ -619,8 +549,10 @@ class BinarySearchTreeView(MyTreeView):
             if parent:
                 right_to_parent = TreeLine(parent, node_right)  # 右节点连接父节点线条
                 connect_node(parent, node_right, right_to_parent, direction)  # 节点属性赋值
+                self.line_animation(right_to_parent, state="default")
                 self.scene().addItem(right_to_parent)  # 线条添加至场景
             connect_node(r_max_l, node_left, left_to_right, 'l')
+            self.line_animation(left_to_right, state="default")
             self.scene().addItem(left_to_right)
 
             node_right.move_animation(pos)  # 移动动画
@@ -637,6 +569,7 @@ class BinarySearchTreeView(MyTreeView):
             if parent:
                 line = TreeLine(parent, node_right)
                 connect_node(parent, node_right, line, 'r')
+                self.line_animation(line, state="default")
                 self.scene().addItem(line)
             node_right.move_animation(pos)
             self.update_node()
@@ -650,6 +583,7 @@ class BinarySearchTreeView(MyTreeView):
             if parent:
                 line = TreeLine(parent, node_left)
                 connect_node(parent, node_left, line, 'l')
+                self.line_animation(line, state="default")
                 self.scene().addItem(line)
             node_left.move_animation(pos)
             self.update_node()
@@ -658,6 +592,88 @@ class BinarySearchTreeView(MyTreeView):
             # 不应该出现这种情况
             # 以上已经枚举了所有情况了
             raise TypeError
+        self.redraw()
+
+    # 重绘
+    def redraw(self):
+        """
+        这个方法主要时防止二叉树节点的增多带来的交叉，只有在最后一层节点增加时才调用该方法
+        """
+        root = self.first_node
+        if not root: return
+        q = []
+        tree_max_layer = root.maxDepth()
+        root.set_color("default")
+        if root.left:
+            root.l_line.set_color("default")
+            q.append((root.left, 'l'))
+        if root.right:
+            root.r_line.set_color("default")
+            q.append((root.right, 'r'))
+
+        while q:
+            temp = []
+            for node, directions in q:
+                node.set_color("default")
+                node.max_layer = tree_max_layer
+                node.cur_layer = node.parent.cur_layer + 1
+                node.setPos(self.calculated_pos(node, directions))
+                if node.left:
+                    node.l_line.set_color("default")
+                    temp.append((node.left, 'l'))
+                if node.right:
+                    node.r_line.set_color("default")
+                    temp.append((node.right, 'r'))
+            q = temp
+
+    def get_node(self, parent_node: SearchTreeNode, directions: str, val: str) -> SearchTreeNode:
+        """
+        1. 返回新的树节点
+        2. 将父节点与新节点连接
+        3. 将节点连接
+        """
+        if directions != "l" and directions != "r":
+            raise TypeError("direction can only 'l' or 'r'")
+        new_node = SearchTreeNode(val)
+        new_node.parent = parent_node
+        new_line = TreeLine(parent_node, new_node)
+        new_node.p_line = new_line
+        if directions == "l":
+            parent_node.left = new_node
+            parent_node.l_line = new_line
+        else:
+            parent_node.right = new_node
+            parent_node.r_line = new_line
+
+        new_node.cur_layer = parent_node.cur_layer + 1
+        new_node.max_layer = self.first_node.maxDepth()
+        return new_node
+
+    # 查找插入位置
+    def insert_node(self, val: str):
+        """
+        插入方法
+        查找节点插入的位置同时完成插入
+
+        若该为第一个节点则在插入至默认位置
+        """
+
+        # 查找插入位置
+        def insert_position(node: SearchTreeNode, cur_val: str):
+            if int(cur_val) < int(node.val.text()):
+                if node.left is None: return node, "l"
+                return insert_position(node.left, cur_val)
+            elif int(cur_val) > int(node.val.text()):
+                if node.right is None: return node, "r"
+                return insert_position(node.right, cur_val)
+            else:
+                raise TypeError("insert_position: 不应该传入相同的值")
+
+        # 第一个节点
+        if not self.first_node:
+            return "", ""
+        else:
+            return insert_position(self.first_node, val)
 
     # 更新节点属性
     def update_node(self) -> None:
@@ -688,9 +704,48 @@ class BinarySearchTreeView(MyTreeView):
 
         bfs(root)
 
+    @Property(QPointF)
+    def connect_line_animation(self):
+        # print("Property get")
+        return self.pre_line.endP
+
+    @connect_line_animation.setter
+    def connect_line_animation(self, p):
+        # print("Property set")
+        self.pre_line.endP = p
+        line = QLineF(self.pre_line.startP, self.pre_line.endP)
+        self.pre_line.setLine(line)
+        return
+
+    def line_animation(self, line: TreeLine, **kwargs):
+        """
+        启动这个动画需要事先设置属性 pre_line
+        """
+        print("line_animation启动")
+
+        startP, endP = line.startP, line.endP
+        self.pre_line = TreeLine(line.startI, line.endI)
+        self.scene().addItem(self.pre_line)
+        self.pre_line.set_color("traversal")
+
+        anim = QPropertyAnimation(self)
+        anim.setTargetObject(self)
+        anim.setPropertyName(b'connect_line_animation')
+        anim.setStartValue(startP)
+        anim.setEndValue(endP)
+        anim.setDuration(1000)
+        anim.start()
+        stopTime(1)
+
+        self.scene().removeItem(self.pre_line)
+        color = kwargs.get("state", "path")
+        line.set_color(color)
+
+        print("line_animation结束")
+
     def search(self, val: str):
         """
-        无返回值，主要展示二叉搜索树查找的过程
+        无返回值，主要展示二叉搜索树查找的过程吗，处理用户的输入
 
         1. 算法使用 DFS
         2. 路过的节点与要查找的节点颜色不一样 (这里路过的节点指的是遍历路径)
@@ -721,13 +776,13 @@ class BinarySearchTreeView(MyTreeView):
                 return
             # 向右找
             elif cur_val < val:
-                node.set_color('path')
-                node.r_line.traversal()
+                node.path_animation()
+                self.line_animation(node.r_line)
                 dfs(node.right)
             # 向左找
             else:
-                node.set_color('path')
-                node.l_line.traversal()
+                node.path_animation()
+                self.line_animation(node.l_line)
                 dfs(node.left)
 
         dfs(node)
@@ -748,7 +803,7 @@ class BinarySearchTreeView(MyTreeView):
         res = []
         i, n = 0, len(s)
         while i < n:
-            while i < n and (s[i] == ',' or s[i] == '，' or (s[i] != ',' and s[i] != '，' and not(s[i].isdigit()))):
+            while i < n and (s[i] == ',' or s[i] == '，' or (s[i] != ',' and s[i] != '，' and not (s[i].isdigit()))):
                 i += 1
             i = i
             c = ""
@@ -759,3 +814,74 @@ class BinarySearchTreeView(MyTreeView):
             if c: res.append(c)
             i = i
         return res
+
+    def traversal_pre_animation(self):
+        """
+        前序遍历：从根节点开始，一直递归调用左节点直到为None，递归开始直接设置节点状态为traversal
+        算法：DFS
+
+        1. 路过节点时设置为path状态
+        2. 遍历节点时设置为traversal状态
+        3. 路过节点时line启动动画
+        """
+        root = self.first_node
+
+        def dfs(node: SearchTreeNode):
+            node.traversal_animation()
+            if node.left:
+                self.line_animation(node.l_line)
+                dfs(node.left)
+            if node.right:
+                self.line_animation(node.r_line)
+                dfs(node.right)
+
+        dfs(root)
+
+    def traversal_in_animation(self):
+        """
+        中序遍历：从根节点开始，一直递归调用左节点设置节点状态为 path 直到为None然后设置节点状态为 traversal ，接着开始递归调用右节点直到有左节点或者None
+        算法：DFS
+
+        1. 路过节点时设置为path状态
+        2. 遍历节点时设置为traversal状态
+        3. 路过节点时line启动动画
+        """
+
+        root = self.first_node
+
+        def dfs(node: SearchTreeNode):
+            node.set_color('path')
+            if node.left:
+                self.line_animation(node.l_line)
+                dfs(node.left)
+            node.traversal_animation()
+            if node.right:
+                self.line_animation(node.r_line)
+                dfs(node.right)
+
+        dfs(root)
+    def traversal_post_animation(self):
+        """
+        中序遍历：从根节点开始，一直递归调用左节点设置节点状态为 path 直到为None然后递归调用右节点，
+                若右节点也有左节点则继续递归调用左节点，直到为None将节点状态设置为traversal
+
+        算法：DFS
+
+        1. 路过节点时设置为path状态
+        2. 遍历节点时设置为traversal状态
+        3. 路过节点时line启动动画
+        """
+
+        root = self.first_node
+
+        def dfs(node: SearchTreeNode):
+            node.set_color('path')
+            if node.left:
+                self.line_animation(node.l_line)
+                dfs(node.left)
+            if node.right:
+                self.line_animation(node.r_line)
+                dfs(node.right)
+            node.traversal_animation()
+
+        dfs(root)

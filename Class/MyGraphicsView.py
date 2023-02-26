@@ -14,6 +14,7 @@ class MyTreeView(QGraphicsView):
         self._enlarge = 0  # 放大的次数
         self._shrink = 0  # 缩小的次数
         self.last_pos = QtCore.QPointF()  # 作用 -> 记录鼠标位置，移动view
+        self.pre_line = None
 
         # 设置Setting
         self.setScene(QGraphicsScene(self.x(), self.y(), self.width(), self.height(), self))  # 内置一个场景
