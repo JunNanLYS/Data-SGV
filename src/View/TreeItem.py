@@ -9,8 +9,8 @@ from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemAnimation, QGraphi
     QGraphicsSimpleTextItem
 
 # 树节点
-from DataStructureGraphicsView.Class.MyGraphicsItem import MyEllipseItem, MyLineItem
-from DataStructureGraphicsView.Functions.polarAngle import polar_angle_x, polar_angle_y
+from src.MyClass.MyGraphicsItem import MyEllipseItem, MyLineItem
+from src.Functions.polarAngle import polar_angle_x, polar_angle_y
 
 
 def stopTime(second: int):

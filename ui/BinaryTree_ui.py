@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'BinaryTree_ui.ui'
+## Form generated from reading ui file 'BinaryTree_ui.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.4.0
 ##
-## WARNING! All changes made in this file will be lost when recompiling UI file!
+## WARNING! All changes made in this file will be lost when recompiling ui file!
 ################################################################################
 
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QPushButton, QSizePolicy, QSpacerItem, QVBoxLayout,
                                QWidget)
 
-from DataStructureGraphicsView.Class.MyWidget import MyWidget
-from DataStructureGraphicsView.Buildinin.TreeView import TreeView
-from DataStructureGraphicsView.res import resource_rc
+from src.MyClass.MyWidget import MyWidget
+from src.View.TreeView import TreeView
+from res import resource_rc
 
 
 class Ui_MainWindow(object):

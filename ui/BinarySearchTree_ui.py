@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'BinarySearchTree_ui.ui'
+## Form generated from reading ui file 'BinarySearchTree_ui.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.4.0
 ##
-## WARNING! All changes made in this file will be lost when recompiling UI file!
+## WARNING! All changes made in this file will be lost when recompiling ui file!
 ################################################################################
 
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
@@ -15,13 +15,13 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
                            QFont, QFontDatabase, QGradient, QIcon,
                            QImage, QKeySequence, QLinearGradient, QPainter,
                            QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QGraphicsView, QHBoxLayout, QLabel,
-                               QLineEdit, QMainWindow, QPushButton, QSizePolicy,
-                               QSpacerItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QLineEdit,
+                               QMainWindow, QPushButton, QSizePolicy, QSpacerItem,
+                               QVBoxLayout, QWidget)
 
-from DataStructureGraphicsView.Class.MyWidget import MyWidget
-from DataStructureGraphicsView.Buildinin.TreeView import BinarySearchTreeView
-from DataStructureGraphicsView.res import resource_rc
+from src.View.TreeView import BinarySearchTreeView
+from src.MyClass.MyWidget import MyWidget
+from res import resource_rc
 
 
 class Ui_MainWindow(object):
@@ -52,13 +52,13 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_4.addItem(self.horizontalSpacer)
 
-        self.button_enlayge = QPushButton(self.widget)
-        self.button_enlayge.setObjectName(u"button_enlayge")
-        self.button_enlayge.setMinimumSize(QSize(41, 41))
-        self.button_enlayge.setStyleSheet(u"image: url(:/icon/icons/enlarge.png);\n"
+        self.button_enlarge = QPushButton(self.widget)
+        self.button_enlarge.setObjectName(u"button_enlarge")
+        self.button_enlarge.setMinimumSize(QSize(41, 41))
+        self.button_enlarge.setStyleSheet(u"image: url(:/icon/icons/enlarge.png);\n"
                                           "border:none;")
 
-        self.horizontalLayout_4.addWidget(self.button_enlayge)
+        self.horizontalLayout_4.addWidget(self.button_enlarge)
 
         self.button_close = QPushButton(self.widget)
         self.button_close.setObjectName(u"button_close")
@@ -76,7 +76,7 @@ class Ui_MainWindow(object):
         self.graphicsView.setObjectName(u"graphicsView")
         self.graphicsView.setMinimumSize(QSize(640, 620))
         self.graphicsView.setStyleSheet(u"background-color: rgb(255, 255, 255);\n"
-                                        "border-radius:8px;")
+                                        "border-radius:10px;")
 
         self.horizontalLayout_5.addWidget(self.graphicsView)
 
@@ -116,6 +116,8 @@ class Ui_MainWindow(object):
         font2.setPointSize(10)
         self.lineEdit_add.setFont(font2)
         self.lineEdit_add.setStyleSheet(u"QLineEdit{\n"
+                                        "	\n"
+                                        "	background-color: rgb(255, 255, 255);\n"
                                         "	border-radius: 5px;\n"
                                         "}")
 
@@ -154,6 +156,7 @@ class Ui_MainWindow(object):
         font3.setBold(False)
         self.lineEdit_delete.setFont(font3)
         self.lineEdit_delete.setStyleSheet(u"QLineEdit{\n"
+                                           "	background-color: rgb(255, 255, 255);\n"
                                            "	border-radius: 5px;\n"
                                            "}")
 
@@ -189,11 +192,12 @@ class Ui_MainWindow(object):
         self.lineEdit_search.setObjectName(u"lineEdit_search")
         self.lineEdit_search.setMinimumSize(QSize(160, 40))
         font4 = QFont()
-        font4.setFamilies([u"Microsoft YaHei UI"])
+        font4.setFamilies([u"Microsoft YaHei ui"])
         font4.setPointSize(10)
         font4.setBold(False)
         self.lineEdit_search.setFont(font4)
         self.lineEdit_search.setStyleSheet(u"QLineEdit{\n"
+                                           "	background-color: rgb(255, 255, 255);\n"
                                            "	border-radius: 5px;\n"
                                            "}")
 
@@ -301,7 +305,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
         self.button_setting.setText("")
-        self.button_enlayge.setText("")
+        self.button_enlarge.setText("")
         self.button_close.setText("")
         self.label_title.setText(QCoreApplication.translate("MainWindow", u"Binary Search Tree", None))
         self.label_add.setText(QCoreApplication.translate("MainWindow", u"V=", None))

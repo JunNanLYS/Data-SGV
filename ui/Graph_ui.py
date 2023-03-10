@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'Graph_ui.ui'
+## Form generated from reading ui file 'Graph_ui.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.4.0
 ##
-## WARNING! All changes made in this file will be lost when recompiling UI file!
+## WARNING! All changes made in this file will be lost when recompiling ui file!
 ################################################################################
 
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QPushButton, QSizePolicy, QSpacerItem, QTextBrowser,
                                QVBoxLayout, QWidget)
 
-from DataStructureGraphicsView.Buildinin.GraphView import GraphView
-from DataStructureGraphicsView.Class.MyWidget import MyWidget
-from DataStructureGraphicsView.res import resource_rc
+from src.View.GraphView import GraphView
+from src.MyClass.MyWidget import MyWidget
+from res import resource_rc
 
 
 class Ui_MainWindow(object):
@@ -171,7 +171,7 @@ class Ui_MainWindow(object):
         self.textBrowser.setObjectName(u"textBrowser")
         self.textBrowser.setMinimumSize(QSize(280, 270))
         font1 = QFont()
-        font1.setFamilies([u"Microsoft YaHei UI Light"])
+        font1.setFamilies([u"Microsoft YaHei ui Light"])
         font1.setPointSize(16)
         font1.setBold(False)
         self.textBrowser.setFont(font1)
@@ -240,7 +240,7 @@ class Ui_MainWindow(object):
                                                             "hr { height: 1px; border-width: 0; }\n"
                                                             "li.unchecked::marker { content: \"\\2610\"; }\n"
                                                             "li.checked::marker { content: \"\\2612\"; }\n"
-                                                            "</style></head><body style=\" font-family:'Microsoft YaHei UI Light'; font-size:16pt; font-weight:400; font-style:normal;\">\n"
+                                                            "</style></head><body style=\" font-family:'Microsoft YaHei ui Light'; font-size:16pt; font-weight:400; font-style:normal;\">\n"
                                                             "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p></body></html>",
                                                             None))
         self.button_bfs.setText(QCoreApplication.translate("MainWindow", u"BFS", None))

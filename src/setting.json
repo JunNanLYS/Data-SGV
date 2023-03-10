@@ -1,0 +1,19 @@
+{
+  "global": {
+    "theme": "white",
+    "animationSpeed": 0.5
+  },
+  "tree": {
+    "binaryTree": {},
+    "binarySearchTree": {},
+    "avl": {}
+  },
+  "graph": {
+    "directedGraph": {},
+    "undirectedGraph": {}
+  },
+  "heap": {
+    "maxHeap": {},
+    "minHeap": {}
+  }
+}

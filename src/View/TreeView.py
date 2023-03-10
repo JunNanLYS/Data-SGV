@@ -3,12 +3,12 @@ from collections import deque
 import PySide6
 from PySide6 import QtCore, QtGui
 from PySide6.QtGui import QCursor, QBrush, QColor, QPen
-from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEventLoop, Property, \
+from PySide6.QtCore import Qt, QPointF, QTime, QCoreApplication, QEventLoop, Property, \
     QPropertyAnimation, QLineF
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
 
-from DataStructureGraphicsView.Buildinin.TreeItem import TreeNode, TreeLine, SearchTreeNode
-from DataStructureGraphicsView.Class.MyGraphicsView import MyTreeView
+from src.View.TreeItem import TreeNode, TreeLine, SearchTreeNode
+from src.MyClass.MyGraphicsView import MyTreeView
 
 
 def stopTime(second: int):
@@ -319,10 +319,11 @@ class TreeView(MyTreeView):
         """
         if color_set != 'start' and color_set != 'end':
             print("Error: color_set参数传入错误，请在 'start' 和 'end' 中选一个")
-        root = self.default_node
-        node_color = QBrush(QColor(0, 255, 0)) if color_set == 'start' else QBrush(QColor(58, 143, 192))
-        line_color = QPen(QColor(0, 255, 0)) if color_set == 'start' else QPen(Qt.black, 3, Qt.SolidLine, Qt.RoundCap,
-                                                                               Qt.RoundJoin)
+        root: TreeNode = self.default_node
+        node_color: QBrush = QBrush(QColor(0, 255, 0)) if color_set == 'start' else QBrush(QColor(58, 143, 192))
+        line_color: QPen = QPen(QColor(0, 255, 0)) if color_set == 'start' else QPen(Qt.black, 3, Qt.SolidLine,
+                                                                                     Qt.RoundCap,
+                                                                                     Qt.RoundJoin)
         root.setBrush(node_color)
         q = []
         if root.left: q.append((root.left, 'l'))
@@ -402,6 +403,7 @@ class BinarySearchTreeView(MyTreeView):
         for v in val:
             if v in self.node_vals: continue
             self.create_node(v)
+            print(f"创建节点{v}")
 
     # 创建节点
     def create_node(self, val: str) -> None:
@@ -721,7 +723,7 @@ class BinarySearchTreeView(MyTreeView):
         """
         启动这个动画需要事先设置属性 pre_line
         """
-        print("line_animation启动")
+        # print("line_animation启动")
 
         startP, endP = line.startP, line.endP
         self.pre_line = TreeLine(line.startI, line.endI)
@@ -741,7 +743,7 @@ class BinarySearchTreeView(MyTreeView):
         color = kwargs.get("state", "path")
         line.set_color(color)
 
-        print("line_animation结束")
+        # print("line_animation结束")
 
     def search(self, val: str):
         """
@@ -860,6 +862,7 @@ class BinarySearchTreeView(MyTreeView):
                 dfs(node.right)
 
         dfs(root)
+
     def traversal_post_animation(self):
         """
         中序遍历：从根节点开始，一直递归调用左节点设置节点状态为 path 直到为None然后递归调用右节点，
@@ -885,3 +888,5 @@ class BinarySearchTreeView(MyTreeView):
             node.traversal_animation()
 
         dfs(root)
+
+

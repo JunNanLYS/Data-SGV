@@ -1,0 +1,16 @@
+QSlider::groove:horizontal {
+    border: none;
+    height: 2px;
+    background-color: rgb(255, 255, 255);
+}
+
+QSlider::handle:horizontal {
+    background-color: rgb(0, 0, 0);
+    width: 16px;
+    margin: -8px 0px -8px 0px;
+    border-radius: 8px;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: rgb(0, 0, 0);
+}

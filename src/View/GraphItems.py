@@ -2,8 +2,7 @@ import sys
 from collections import defaultdict
 
 # Builtin
-from DataStructureGraphicsView.Functions.polarAngle import polar_angle_x, polar_angle_y
-from math import sin, cos
+from src.Functions.polarAngle import polar_angle_x, polar_angle_y
 
 import PySide6
 from PySide6 import QtWidgets

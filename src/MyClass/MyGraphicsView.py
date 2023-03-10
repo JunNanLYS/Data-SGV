@@ -1,7 +1,7 @@
 import PySide6
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QCursor
+from PySide6.QtGui import QCursor, QPainter
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
 
 
@@ -52,3 +52,10 @@ class MyTreeView(QGraphicsView):
                 self._shrink += 1
                 self._enlarge -= 1
                 self.scale(ratio, ratio)
+
+    def paintEvent(self, event: PySide6.QtGui.QPaintEvent) -> None:
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(Qt.white)
+        painter.drawRoundedRect(self.rect(), 20, 20)

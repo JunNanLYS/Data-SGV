@@ -35,6 +35,10 @@
       <height>800</height>
      </size>
     </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(240, 240, 240);
+border-radius:10px;</string>
+    </property>
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -69,7 +73,7 @@ border:none;</string>
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="button_enlayge">
+        <widget class="QPushButton" name="button_enlarge">
          <property name="minimumSize">
           <size>
            <width>41</width>
@@ -116,7 +120,7 @@ border:none;</string>
          </property>
          <property name="styleSheet">
           <string notr="true">background-color: rgb(255, 255, 255);
-border-radius:8px;</string>
+border-radius:10px;</string>
          </property>
         </widget>
        </item>
@@ -179,6 +183,8 @@ border-radius:8px;</string>
                </property>
                <property name="styleSheet">
                 <string notr="true">QLineEdit{
+	
+	background-color: rgb(255, 255, 255);
 	border-radius: 5px;
 }</string>
                </property>
@@ -252,6 +258,7 @@ QPushButton:hover {
                </property>
                <property name="styleSheet">
                 <string notr="true">QLineEdit{
+	background-color: rgb(255, 255, 255);
 	border-radius: 5px;
 }</string>
                </property>
@@ -332,6 +339,7 @@ QPushButton:hover {
                </property>
                <property name="styleSheet">
                 <string notr="true">QLineEdit{
+	background-color: rgb(255, 255, 255);
 	border-radius: 5px;
 }</string>
                </property>

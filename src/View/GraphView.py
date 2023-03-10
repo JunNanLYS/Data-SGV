@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, QPointF, QTimeLine, QTime, QCoreApplication, QEve
     QPropertyAnimation
 from PySide6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsItemAnimation
 
-from DataStructureGraphicsView.Buildinin.GraphItems import GraphEllipseItem, GraphArrowLine
+from src.View.GraphItems import GraphEllipseItem, GraphArrowLine
 
 
 def stopTime(second: int):
