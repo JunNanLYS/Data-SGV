@@ -49,11 +49,11 @@
         <height>782</height>
        </rect>
       </property>
-      <widget class="QWidget" name="">
+      <widget class="QWidget" name="layoutWidget">
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>10</y>
+         <y>20</y>
          <width>191</width>
          <height>181</height>
         </rect>
@@ -62,7 +62,7 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
-           <widget class="StyleButton" name="button_close">
+           <widget class="IconButton" name="button_close">
             <property name="minimumSize">
              <size>
               <width>31</width>
@@ -163,15 +163,6 @@ margin:2px;
           </item>
           <item>
            <widget class="StyleSlider" name="slider_animation">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>21</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true"/>
-            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -181,7 +172,7 @@ margin:2px;
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="">
+      <widget class="QWidget" name="layoutWidget">
        <property name="geometry">
         <rect>
          <x>20</x>
@@ -231,38 +222,80 @@ margin:2px;
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="">
+      <widget class="StyleButton" name="button_avl">
        <property name="geometry">
         <rect>
-         <x>60</x>
-         <y>340</y>
-         <width>77</width>
-         <height>86</height>
+         <x>10</x>
+         <y>590</y>
+         <width>211</width>
+         <height>81</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_6">
-        <item>
-         <widget class="QPushButton" name="button_tree">
-          <property name="text">
-           <string>Tree</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="button_search_tree">
-          <property name="text">
-           <string>SearchTree</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="button_avl">
-          <property name="text">
-           <string>AVL</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+       <property name="text">
+        <string>AVL</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="autoRepeat">
+        <bool>false</bool>
+       </property>
+       <property name="autoExclusive">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="StyleButton" name="button_search_tree">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>460</y>
+         <width>211</width>
+         <height>81</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>SearchTree</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="autoRepeat">
+        <bool>false</bool>
+       </property>
+       <property name="autoExclusive">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="StyleButton" name="button_tree">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>330</y>
+         <width>211</width>
+         <height>71</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Tree</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+       <property name="autoRepeat">
+        <bool>false</bool>
+       </property>
+       <property name="autoExclusive">
+        <bool>true</bool>
+       </property>
       </widget>
      </widget>
     </widget>
@@ -289,6 +322,11 @@ margin:2px;
   </customwidget>
   <customwidget>
    <class>StyleButton</class>
+   <extends>QPushButton</extends>
+   <header>src.MyClass.MyWidget</header>
+  </customwidget>
+  <customwidget>
+   <class>IconButton</class>
    <extends>QPushButton</extends>
    <header>src.MyClass.MyWidget</header>
   </customwidget>

@@ -1,12 +1,11 @@
-import asyncio
-import PySide6
-from PySide6.QtCore import Qt, QPointF, QPoint, QFile, Property, QPropertyAnimation, QThread, QTime, QCoreApplication, \
+from PySide6.QtCore import Qt, QPoint, Property, QPropertyAnimation, QTime, QCoreApplication, \
     QEventLoop
-from PySide6.QtGui import QGuiApplication, QScreen
+from PySide6.QtGui import QScreen, QBrush, QColor
 
-from ui.BinarySearchTree_ui import Ui_MainWindow
-from PySide6.QtWidgets import QApplication, QMainWindow
-from src.window.Setting import SettingWidget
+from ui.BinarySearchTree import Ui_widget_background
+from PySide6.QtWidgets import QApplication
+from src.window.TreeSetting import TreeSettingWidget
+from src.MyClass.MyWidget import BlackMask, MyWidget
 
 
 def split(s: str) -> list[str]:
@@ -43,33 +42,33 @@ def stopTime(x: int, state=False):
         QCoreApplication.processEvents(QEventLoop.AllEvents, 100)
 
 
-class SearchTree(QMainWindow):
+class SearchTree(MyWidget):
 
     def __init__(self):
         super(SearchTree, self).__init__()
-        self.ui = Ui_MainWindow()
+        self.ui = Ui_widget_background()
         self.ui.setupUi(self)
-        self.setWindowFlag(Qt.FramelessWindowHint)  # MainWindow自带的栏隐藏
-        self.setAttribute(Qt.WA_TranslucentBackground)  # MainWindow背景隐藏
+        self.set_brush_color(QBrush(QColor(230, 230, 230)))
 
         # MyWidget 设置
-        self.setting_widget = SettingWidget(self.ui.widget)  # 用于设置的窗口
+        self.black_mask = BlackMask(self)
+        self.black_mask.resize(self.width(), self.height())
+        self.black_mask.hide()
+
+        self.setting_widget = TreeSettingWidget(self)  # Setting 窗口
         self.setting_widget.hide()
 
         self.widget_enlarge_cnt = 0  # 0未放大 1已放大
-        self.ui.widget.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)  # widget主窗口 | 标题栏隐藏
-        self.ui.widget.setAttribute(Qt.WA_TranslucentBackground)  # 背景无绘制
-        self.ui.widget.showNormal()
-        self.move_to_desktop_center(self.ui.widget)
+        self.move_to_desktop_center(self)
 
         # 信号连接槽函数
         self.ui.button_add.clicked.connect(self.add)
         self.ui.button_delete.clicked.connect(self.delete)
         self.ui.button_search.clicked.connect(self.search)
 
-        self.ui.button_preorder.clicked.connect(self.traversal_pre)
-        self.ui.button_inorder.clicked.connect(self.traversal_in)
-        self.ui.button_postorder.clicked.connect(self.traversal_post)
+        self.ui.button_pre.clicked.connect(self.traversal_pre)
+        self.ui.button_in.clicked.connect(self.traversal_in)
+        self.ui.button_post.clicked.connect(self.traversal_post)
 
         self.ui.button_enlarge.clicked.connect(self.enlarge)
         self.ui.button_setting.clicked.connect(self.open_setting)
@@ -102,20 +101,14 @@ class SearchTree(QMainWindow):
 
     # 放大槽函数
     def enlarge(self):
-        widget = self.ui.widget
         self.widget_enlarge_cnt ^= 1
         if self.widget_enlarge_cnt:
-            widget.pre_pos = self.ui.widget.pos()
-            widget.setWindowFlags(Qt.Window)
-            widget.showFullScreen()
+            self.showFullScreen()
         else:
-            widget.setWindowFlags(Qt.SubWindow)
-            widget.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-            widget.setAttribute(Qt.WA_TranslucentBackground)
-            widget.showNormal()
-            widget.resize(widget.minimumSize())
-            # 由于缩小以后widget会移动到左上角，我们需要手动将其移动到屏幕中心
-            self.move_to_desktop_center(widget)
+            # widget.setAttribute(Qt.WA_TranslucentBackground)
+            self.showNormal()
+            self.resize(self.minimumSize())
+
 
     def move_to_desktop_center(self, widget):
         """将widget移动到屏幕中间"""
@@ -174,11 +167,13 @@ class SearchTree(QMainWindow):
         animations.start()
 
     def open_setting(self):
+        self.black_mask.show()
         self.setting_widget.show()
-        self.start_animation()
+        self.start_animation()  # Setting 移动动画
         print("open setting")
 
     def close_setting(self):
+        self.black_mask.hide()
         self.start_animation(state="close")
         stopTime(500, state=True)
         self.setting_widget.hide()

@@ -1,5 +1,5 @@
 import PySide6
-from PySide6 import QtCore
+from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor, QPainter
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
@@ -19,6 +19,7 @@ class MyTreeView(QGraphicsView):
         # 设置Setting
         self.setScene(QGraphicsScene(self.x(), self.y(), self.width(), self.height(), self))  # 内置一个场景
         self.viewport().setProperty("cursor", QCursor(Qt.CrossCursor))  # 设置光标为十字型  ( + )
+        self.setRenderHint(QPainter.Antialiasing)
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         if event.button() == Qt.MiddleButton:
@@ -55,7 +56,5 @@ class MyTreeView(QGraphicsView):
 
     def paintEvent(self, event: PySide6.QtGui.QPaintEvent) -> None:
         super().paintEvent(event)
-        painter = QPainter(self)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(Qt.white)
-        painter.drawRoundedRect(self.rect(), 20, 20)
+        # painter = QPainter(self)
+        # painter.setRenderHint(QPainter.Antialiasing)
