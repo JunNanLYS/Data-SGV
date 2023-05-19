@@ -1,4 +1,0 @@
-QScrollBar:vertical{
-    background-color:white;
-    width:10px;
-}

@@ -1,19 +1,22 @@
 {
   "global": {
-    "theme": "white",
-    "animationSpeed": 0.5
+    "animation_speed": 1.0,
+    "node_color": "blue",
+    "log_animation_speed": 0.5
   },
   "tree": {
-    "binaryTree": {},
-    "binarySearchTree": {},
-    "avl": {}
-  },
-  "graph": {
-    "directedGraph": {},
-    "undirectedGraph": {}
   },
   "heap": {
-    "maxHeap": {},
-    "minHeap": {}
+  },
+  "stack": {
+  },
+  "hash": {
+  },
+  "linked_list": {
+  },
+  "graph": {
+    "font_color": "black",
+    "font_size": 8,
+    "font_family": "SimSum"
   }
 }
