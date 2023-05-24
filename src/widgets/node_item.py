@@ -3,7 +3,7 @@ from typing import Optional, Any
 from PySide6.QtWidgets import QGraphicsEllipseItem
 from PySide6.QtCore import QRect
 from PySide6.QtGui import QColor, QBrush
-from ..tool import ColorTool, PathTool
+from src.tool import ColorTool, PathTool
 import path
 import json
 

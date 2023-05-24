@@ -8,7 +8,6 @@ from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QPen, QFont, QColor
 from PySide6.QtWidgets import QGraphicsItemGroup, QGraphicsSimpleTextItem
 from collections import defaultdict
-from ..widgets import line_item
 from ..widgets.node_item import NodeItem
 from src import tool
 
