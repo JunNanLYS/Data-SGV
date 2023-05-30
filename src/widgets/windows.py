@@ -1,13 +1,14 @@
+from typing import Optional
+
 import PySide6
-from typing import Optional, Union
-from PySide6.QtCore import QPoint, QPointF, Qt, QEvent, Signal, Slot
-from PySide6.QtGui import QPainter, QPen, QCursor, QBrush, QPalette, QColor
+from PySide6 import QtCore
+from PySide6.QtCore import QPoint, Qt, QEvent, Signal
+from PySide6.QtGui import QPainter, QBrush, QColor
 from PySide6.QtWidgets import QWidget
 
 
 class DefaultWidget(QWidget):
-    brush = QBrush(QColor(240, 240, 240))
-    filter_state = True
+    brush = QBrush(QColor(250, 250, 250))
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,6 +30,8 @@ class DefaultWidget(QWidget):
 
 
 class MaskWidget(DefaultWidget):
+    clicked = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.set_widget_brush(Qt.black)
@@ -36,14 +39,9 @@ class MaskWidget(DefaultWidget):
         self.resize(parent.width(), parent.height())
         self.hide()
 
-    def eventFilter(self, watched: PySide6.QtCore.QObject, event: PySide6.QtCore.QEvent) -> bool:
-        if watched is self and event.type() is QEvent.MouseMove:
-            cursor = QCursor(Qt.ArrowCursor)
-            QApplication.setOverrideCursor(cursor)
-            return False
-
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        self.hide()
+        self.clicked.emit()
+        return
 
     def paintEvent(self, event: PySide6.QtGui.QPaintEvent) -> None:
         painter = QPainter(self)
@@ -97,9 +95,9 @@ class RoundedWidget(DefaultWidget):
             event_pos = event.position().toPoint()
             # 水平拉伸
             if self.border.is_left_border(event_pos) or self.border.is_right_border(event_pos):
+                # return False
                 default()
-                cursor = QCursor(Qt.SizeHorCursor)
-                QApplication.setOverrideCursor(cursor)
+                self.setCursor(Qt.SizeHorCursor)
                 if self.border.is_left_border(event_pos):
                     self.left_horizontal = True
                 else:
@@ -107,8 +105,7 @@ class RoundedWidget(DefaultWidget):
             # 垂直拉伸
             elif self.border.is_top_border(event_pos) or self.border.is_lower_border(event_pos):
                 default()
-                cursor = QCursor(Qt.SizeVerCursor)
-                QApplication.setOverrideCursor(cursor)
+                self.setCursor(Qt.SizeVerCursor)
                 if self.border.is_top_border(event_pos):
                     self.top_vertical = True
                 else:
@@ -116,8 +113,7 @@ class RoundedWidget(DefaultWidget):
             # 反斜
             elif self.border.is_top_left(event_pos) or self.border.is_lower_right(event_pos):
                 default()
-                cursor = QCursor(Qt.SizeFDiagCursor)
-                QApplication.setOverrideCursor(cursor)
+                self.setCursor(Qt.SizeFDiagCursor)
                 if self.border.is_top_left(event_pos):
                     self.top_left_diag = True
                 else:
@@ -125,8 +121,7 @@ class RoundedWidget(DefaultWidget):
             # 正斜
             elif self.border.is_top_right(event_pos) or self.border.is_lower_left(event_pos):
                 default()
-                cursor = QCursor(Qt.SizeBDiagCursor)
-                QApplication.setOverrideCursor(cursor)
+                self.setCursor(Qt.SizeBDiagCursor)
                 if self.border.is_top_right(event_pos):
                     self.top_right_diag = True
                 else:
@@ -134,8 +129,7 @@ class RoundedWidget(DefaultWidget):
             # 恢复
             else:
                 default()
-                cursor = QCursor(Qt.ArrowCursor)
-                QApplication.setOverrideCursor(cursor)
+                self.setCursor(Qt.ArrowCursor)
         return False
 
     def resizeEvent(self, event: PySide6.QtGui.QResizeEvent) -> None:
@@ -212,16 +206,29 @@ class RoundedWidget(DefaultWidget):
 
 
 class RoundedWindow(RoundedWidget):
-    mask_signal = Signal()
+    sizeChanged = Signal(int, int)
+    maskShow = Signal()
+    maskHide = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.mask = MaskWidget(self)
-        self.mask.show()
+        # init mask
+        self.__mask = MaskWidget(self)
+        self.__mask.clicked.connect(self.hide_mask)
 
     def resizeEvent(self, event: PySide6.QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        self.mask.update_size()
+        self.sizeChanged.emit(self.width(), self.height())
+        self.__mask.update_size()
+
+    def show_mask(self):
+        self.__mask.raise_()
+        self.__mask.show()
+        self.maskShow.emit()
+
+    def hide_mask(self):
+        self.__mask.hide()
+        self.maskHide.emit()
 
 
 class MousePosition:
@@ -325,5 +332,6 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     window = RoundedWindow()
+    window.show_mask()
     window.show()
     sys.exit(app.exec())

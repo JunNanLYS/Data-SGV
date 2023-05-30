@@ -7,14 +7,11 @@ from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPo
 from PySide6.QtGui import QCursor, QPainter, QTransform, QColor
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsSimpleTextItem, QGraphicsItem
 
-from src.widgets import line_item
+from src.widgets.line_item import GraphicsLineItem, Line, LineEnum
 from src.data_structure.binary_tree import TreeNode
 from src.data_structure.graph import GraphNode
 from src.tool import JsonSettingTool, stop_time
 from src.widgets.node_item import NodeItem
-
-LINE_ITEMS = {line_item.Line, line_item.LineToEllipse, line_item.ArrowLine,
-              line_item.ArrowLineWithWeight, line_item.LineWithWeight}
 
 
 class MyGraphicsView(QGraphicsView):
@@ -77,7 +74,7 @@ class MyGraphicsView(QGraphicsView):
 # 二叉树
 class BinaryTreeView(MyGraphicsView):
     root_y = 50
-    animation_line: Optional[line_item.LineToEllipse] = None
+    animation_line: Optional[Line] = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -103,7 +100,7 @@ class BinaryTreeView(MyGraphicsView):
         self.create_node(val)
         pass
 
-    def animation_line_start(self, line: Optional[line_item.LineToEllipse]):
+    def animation_line_start(self, line: Optional[Line]):
         self.animation_line = line
 
         animation_speed: float = JsonSettingTool.animation_speed()  # 动画速度
@@ -153,7 +150,8 @@ class BinaryTreeView(MyGraphicsView):
 
     def connect_node(self, parent: TreeNode, child: TreeNode, direction: str) -> None:
         """连接节点"""
-        line = line_item.LineToEllipse(parent, child)
+
+        line = GraphicsLineItem.new_line(parent, child)
         self.scene.addItem(line)
         self.animation_line_start(line)  # 连接节点
         child.p_line = line
@@ -336,7 +334,7 @@ class GraphView(MyGraphicsView):
         self.nodes = defaultdict(GraphNode)  # name: GraphNode object
         names = [x for x in range(1, 1001)]
         self.node_default_names = deque(map(str, names))
-        self.pre_item: Optional[GraphView, line_item.LineWithWeight] = None  # 存储地址
+        self.pre_item: Optional[GraphNode, Line] = None  # 存储地址
         self.cnt = 0
 
     def add_node(self, position: QPoint) -> GraphNode:
@@ -348,7 +346,7 @@ class GraphView(MyGraphicsView):
         new_node.setPos(position - QPointF(new_node.r, new_node.r))
         return new_node
 
-    def delete_item(self, delete_item: Union[GraphNode, line_item.Line]) -> None:
+    def delete_item(self, delete_item: Union[GraphNode, Line]) -> None:
         state = 0  # 表示状态 0执行删除边逻辑, 1执行删除节点逻辑
         if isinstance(delete_item, GraphNode):
             state = 1
@@ -364,7 +362,7 @@ class GraphView(MyGraphicsView):
                 # delete_node is Line
                 else:
                     item.pop_line(delete_item)
-            elif isinstance(item, line_item.Line):
+            elif isinstance(item, Line):
                 self.item_group.pop_item(item, delete_item)
                 if state:
                     # 所有与delete_item有关的line都要从scene中删除
@@ -380,31 +378,15 @@ class GraphView(MyGraphicsView):
 
         self.item_group.pop(delete_item)
 
-    def connect_node(self, name1: str, name2: str, state=line_item.LineEnum.LineWithWeight) -> None:
+    def connect_node(self, name1: str, name2: str, line_enum=LineEnum.ARROW_LINE_WITH_WEIGHT) -> None:
         node1, node2 = self.nodes[name1], self.nodes[name2]
         if self.item_group.in_group(node1, node2):
             return
-        new_line = self.create_line(node1, node2, state)
+        new_line = GraphicsLineItem.new_line(node1, node2, line_enum)
         self.scene.addItem(new_line)
         node2.connect(node1, new_line)
         node1.connect(node2, new_line)
         self.item_group.add_items(node1, node2, new_line)
-
-    def create_line(self, node1, node2, state: line_item.LineEnum = line_item.LineEnum.ArrowLineWithWeight):
-        """
-        return Optional[LineToEllipse, LineWithWeight, ArrowLine, ArrowLineWithWeight]
-        """
-        if state == line_item.LineEnum.LineToEllipse:
-            new_line = line_item.LineToEllipse(node1, node2)
-        elif state == line_item.LineEnum.ArrowLine:
-            new_line = line_item.ArrowLine(node1, node2)
-        elif state == line_item.LineEnum.ArrowLineWithWeight:
-            new_line = line_item.ArrowLineWithWeight(node1, node2)
-        elif state == line_item.LineEnum.LineWithWeight:
-            new_line = line_item.LineWithWeight(node1, node2)
-        else:
-            raise TypeError(f"create_line: state is {state}")
-        return new_line
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mousePressEvent(event)
@@ -431,7 +413,7 @@ class GraphView(MyGraphicsView):
                     self.pre_item.switch_mode("selected")
                     return
             # 点击边
-            elif isinstance(event_item, line_item.Line):
+            elif isinstance(event_item, Line):
                 pass
             elif event_item is None:
                 # 创建新节点
@@ -544,8 +526,8 @@ if __name__ == '__main__':
     view.nodes['Name2'] = ShangHai
     ZheJiang.setPos(QPointF(300, 100))
     ShangHai.setPos(QPointF(400, 100))
-    view.connect_node("Name1", "Name2")
-    # line = line_item.ArrowLineWithWeight(ZheJiang, ShangHai)
+    # view.connect_node("Name1", "Name2")
+    # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
     # view.scene.addItem(line)
 
     view.show()

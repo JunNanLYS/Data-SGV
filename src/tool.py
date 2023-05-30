@@ -49,6 +49,10 @@ class JsonTool:
 
 
 class JsonSettingTool(JsonTool):
+    @classmethod
+    def save_json(cls, dic: dict):
+        with open(PathTool.get_setting_json_path(), 'w') as f:
+            json.dump(dic, f)
 
     @classmethod
     def animation_speed(cls) -> float:
