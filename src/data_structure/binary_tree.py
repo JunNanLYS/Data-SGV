@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 import PySide6
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemGroup, QGraphicsSimpleTextItem, \
@@ -6,14 +6,14 @@ from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemGroup, QGraphicsSi
 from PySide6.QtCore import QRect, QPointF, QTimeLine
 from PySide6.QtGui import QColor, QBrush
 from src.widgets.line_item import Line
-from src.tool import ColorTool, stop_time, JsonSettingTool
-from ..widgets.node_item import NodeItem
+from src.tool import stop_time, JsonSettingTool
+from src.widgets.node_item import TextNodeItem
 
 
-class TreeNode(QGraphicsItemGroup, NodeItem):
+class TreeNode(TextNodeItem):
 
     def __init__(self, val: str, rect: Optional[QRect] = QRect(0, 0, 30, 30)):
-        super(TreeNode, self).__init__()
+        super().__init__(val, rect.x(), rect.y(), rect.width(), rect.height())
         self.left: Optional[TreeNode] = None  # 左节点
         self.right: Optional[TreeNode] = None  # 右节点
         self.parent: Optional[TreeNode] = None  # 父节点
@@ -21,19 +21,7 @@ class TreeNode(QGraphicsItemGroup, NodeItem):
         self.r_line: Optional[Line] = None  # 连接右节点的线条
         self.p_line: Optional[Line] = None  # 连接父节点的线条
 
-        self.node = NodeItem(rect)
-        self.val: str = val  # 节点值
-        self.text: Optional[QGraphicsSimpleTextItem] = QGraphicsSimpleTextItem(self.val)
-
-        # 将圆形与文本组合
-        self.addToGroup(self.node)
-        self.addToGroup(self.text)
-
-        # 文本放置在圆心
-        r = self.node.boundingRect().center().x()
-        w = self.text.boundingRect().center().x()
-        h = self.text.boundingRect().center().y()
-        self.text.setPos(r - w, r - h)
+        self.val = val  # 节点值
 
     def cur_depth(self, root) -> int:
         """查找当前节点在树的第几层"""
@@ -57,28 +45,22 @@ class TreeNode(QGraphicsItemGroup, NodeItem):
             return 0
         return max(self.max_depth(root.left), self.max_depth(root.right)) + 1
 
-    def move_animation(self, target: QPointF):
+    def move_animation(self, time: int, position: QPointF):
         """
-        接收一个参数 target
-        实现节点从一个点移动到另一个点的动画
+        time is millisecond
         """
-        time = int(JsonSettingTool.animation_speed() * 1000)
         animation = QGraphicsItemAnimation()
         timeLine = QTimeLine(time)  # 动画总时长
         animation.setItem(self)
         animation.setTimeLine(timeLine)
         animation.setPosAt(0, self.pos())
-        animation.setPosAt(1, target)
+        animation.setPosAt(1, position)
         animation.timeLine().start()
         stop_time(1)
 
-    def set_color(self, name: Optional[str] = None, color: Optional[QColor] = None) -> None:
+    def set_color(self, color: Union[QColor, str] = None) -> None:
         """修改节点颜色"""
-        if name:
-            self.node.setBrush(QBrush(ColorTool.string_to_QColor(name)))
-        elif color:
-            self.node.setBrush(QBrush(color))
-        return
+        self.set_node_brush(color)
 
     def __str__(self):
         return f"val = {self.val}, l = {self.left}, r = {self.right}, binary_tree.TreeNode(id={id(self)}, pos={self.pos()})"

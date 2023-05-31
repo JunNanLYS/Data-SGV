@@ -51,6 +51,7 @@ class Line(QGraphicsItemGroup):
         x1, y1, x2, y2 = start_pos.x() + r, start_pos.y() + r, end_pos.x() + r, end_pos.y() + r  # 圆心
         self.line_start = QPointF(polar_angle_x(x1, r, angle1), polar_angle_y(y1, r, angle1))
         self.line_end = QPointF(polar_angle_x(x2, r, angle2), polar_angle_y(y2, r, angle2))
+        # self.setLine(QLine(self.line_start.x(), self.line_start.y(), self.line_end.x(), self.line_end.y()))
 
     def setLine(self, line: Union[QLine, QLineF]):
         self.line.setLine(line)
@@ -81,9 +82,19 @@ class Line(QGraphicsItemGroup):
     def start_item(self):
         return self._start_item
 
+    @start_item.setter
+    def start_item(self, item: QGraphicsItem):
+        self._start_item = item
+        self.change()
+
     @property
     def end_item(self):
         return self._end_item
+
+    @end_item.setter
+    def end_item(self, item: QGraphicsItem):
+        self._end_item = item
+        self.change()
 
 
 class LineWithWeight(Line):

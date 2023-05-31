@@ -4,7 +4,7 @@ import PySide6
 from typing import Tuple, Optional, Union
 from collections import defaultdict, deque
 from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPointF
-from PySide6.QtGui import QCursor, QPainter, QTransform, QColor
+from PySide6.QtGui import QCursor, QPainter, QTransform, QColor, QFont
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsSimpleTextItem, QGraphicsItem
 
 from src.widgets.line_item import GraphicsLineItem, Line, LineEnum
@@ -81,7 +81,12 @@ class BinaryTreeView(MyGraphicsView):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.nodes = set()  # 节点集合
+        # init config
+        self.animation_time = 1000  # millisecond
+        self.node_color = "default"  # node color
+        # -----------------------------------------------------
+
+        self.nodes = set()  # 节点集
 
         self.y_spacing = TreeNode("").boundingRect().center().y() + 50  # y间距
         self.x_spacing = TreeNode("").boundingRect().center().x()  # x间距
@@ -129,13 +134,13 @@ class BinaryTreeView(MyGraphicsView):
         """创建节点"""
         # 没有根节点，创建一个根节点
         if not self.nodes:
-            node = TreeNode(val)
+            node = self.new_node(val)
             node.setPos(QPointF(self.root_x, self.root_y))
             self.scene.addItem(node)
             self._root = node
         else:
             parent, direction = self.search_insert_node(val)
-            new_node = TreeNode(val)  # 新节点
+            new_node = self.new_node(val)  # 新节点
 
             if direction == 'l':
                 parent.left = new_node
@@ -150,6 +155,16 @@ class BinaryTreeView(MyGraphicsView):
 
             self.connect_node(parent, new_node, direction)
         self.nodes.add(val)
+
+    def new_node(self, val: str) -> TreeNode:
+        """
+        set node
+        return new node
+        """
+        res_node = TreeNode(val)
+        if self.node_color != "default":
+            res_node.set_node_brush(self.node_color)
+        return res_node
 
     def connect_node(self, parent: TreeNode, child: TreeNode, direction: str) -> None:
         """连接节点"""
@@ -200,7 +215,7 @@ class BinaryTreeView(MyGraphicsView):
                 self.scene.removeItem(item)
 
         if del_right:
-            del_right.move_animation(del_pos)  # 右节点移动到删除节点的位置
+            del_right.move_animation(self.animation_time, del_pos)  # 右节点移动到删除节点的位置
             node = del_right
             if del_left:
                 while node.left is not None:
@@ -214,7 +229,7 @@ class BinaryTreeView(MyGraphicsView):
                 del_right.p_line.start_item = del_parent
 
         elif del_left:
-            del_left.move_animation(del_pos)
+            del_left.move_animation(self.animation_time, del_pos)
 
     def recover(self):
         """二叉树还原至初始状态"""
@@ -332,22 +347,39 @@ class HeapView(MyGraphicsView):
 class GraphView(MyGraphicsView):
     def __init__(self):
         super(GraphView, self).__init__()
+        # init config
+        self.animation_time = 1000  # millisecond
+        self.font_color = "black"  # font color
+        self.font_size = 8  # font size
+        self.font_family = "Segoe"  # font family
+        self.node_color = "default"  # node color
+        # -----------------------------------------------------
 
         self.item_group = ItemGroup()
         self.nodes = defaultdict(GraphNode)  # name: GraphNode object
         names = [x for x in range(1, 1001)]
         self.node_default_names = deque(map(str, names))
         self.pre_item: Optional[GraphNode, Line] = None  # 存储地址
-        self.cnt = 0
 
     def add_node(self, position: QPoint) -> GraphNode:
         """添加新节点"""
-        new_node = GraphNode(self.node_default_names.popleft())
+        new_node = self.new_node(self.node_default_names.popleft())
         self.nodes[new_node.name] = new_node
         self.scene.addItem(new_node)
         position = self.mapToScene(position)
         new_node.setPos(position - QPointF(new_node.r, new_node.r))
         return new_node
+
+    def new_node(self, name: str) -> GraphNode:
+        res_node = GraphNode(name)
+        font = QFont()
+        font.setPointSize(self.font_size)
+        font.setFamily(self.font_family)
+        res_node.set_text_font(font)
+        res_node.set_text_brush(self.font_color)
+        if self.node_color != "default":
+            res_node.set_node_brush(self.node_color)
+        return res_node
 
     def delete_item(self, delete_item: Union[GraphNode, Line]) -> None:
         state = 0  # 表示状态 0执行删除边逻辑, 1执行删除节点逻辑
@@ -505,33 +537,34 @@ class ItemGroup:
 
 if __name__ == '__main__':
     # -----------二叉树----------
-    # app = QApplication(sys.argv)
-    # view = BinaryTreeView()
-    # view.show()
-    # view.resize(500, 500)
-    # view.add_node('10')
-    # view.add_node('20')
-    # view.add_node('5')
-    # view.add_node("15")
-    # view.add_node("25")
-    # view.add_node("7")
-    # view.search_node('15')
-    # sys.exit(app.exec())
+    app = QApplication(sys.argv)
+    view = BinaryTreeView()
+    view.show()
+    view.resize(500, 500)
+    view.add_node('10')
+    view.add_node('20')
+    view.add_node('5')
+    view.add_node("15")
+    view.add_node("25")
+    view.add_node("7")
+    view.search_node('15')
+    view.delete_node("20")
+    sys.exit(app.exec())
 
     # ------------图-------------
-    app = QApplication(sys.argv)
-    view = GraphView()
-    ZheJiang = GraphNode('Name1')
-    ShangHai = GraphNode('Name2')
-    view.scene.addItem(ZheJiang)
-    view.scene.addItem(ShangHai)
-    view.nodes['Name1'] = ZheJiang
-    view.nodes['Name2'] = ShangHai
-    ZheJiang.setPos(QPointF(300, 100))
-    ShangHai.setPos(QPointF(400, 100))
-    # view.connect_node("Name1", "Name2")
-    # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
-    # view.scene.addItem(line)
-
-    view.show()
-    sys.exit(app.exec())
+    # app = QApplication(sys.argv)
+    # view = GraphView()
+    # ZheJiang = GraphNode('Name1')
+    # ShangHai = GraphNode('Name2')
+    # view.scene.addItem(ZheJiang)
+    # view.scene.addItem(ShangHai)
+    # view.nodes['Name1'] = ZheJiang
+    # view.nodes['Name2'] = ShangHai
+    # ZheJiang.setPos(QPointF(300, 100))
+    # ShangHai.setPos(QPointF(400, 100))
+    # # view.connect_node("Name1", "Name2")
+    # # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
+    # # view.scene.addItem(line)
+    #
+    # view.show()
+    # sys.exit(app.exec())
