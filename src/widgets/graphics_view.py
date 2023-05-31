@@ -44,6 +44,9 @@ class MyGraphicsView(QGraphicsView):
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         self.mouse = Qt.MouseButton.NoButton
 
+    def mouseDoubleClickEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        self.mouseReleaseEvent(event)
+
     def wheelEvent(self, event) -> None:
         zoomInFactor = 1.25  # 放大因子
         zoomOutFactor = 1 / zoomInFactor  # 缩小因子

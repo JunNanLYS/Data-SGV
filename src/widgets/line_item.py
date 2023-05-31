@@ -160,7 +160,7 @@ class GraphicsLineItem:
 
     @classmethod
     def new_line(cls, start_item: QGraphicsItem, end_item: QGraphicsItem, line_type: LineEnum = LineEnum.LINE):
-        print(line_type)
+        print(f"new line type is {line_type.value}")
         return cls.line[line_type](start_item, end_item)
 
 

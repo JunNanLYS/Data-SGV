@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemGroup, QGraphicsSi
     QGraphicsItemAnimation
 from PySide6.QtCore import QRect, QPointF, QTimeLine
 from PySide6.QtGui import QColor, QBrush
-from ..widgets import line_item
+from src.widgets.line_item import Line
 from src.tool import ColorTool, stop_time, JsonSettingTool
 from ..widgets.node_item import NodeItem
 
@@ -17,9 +17,9 @@ class TreeNode(QGraphicsItemGroup, NodeItem):
         self.left: Optional[TreeNode] = None  # 左节点
         self.right: Optional[TreeNode] = None  # 右节点
         self.parent: Optional[TreeNode] = None  # 父节点
-        self.l_line: Optional[line_item.LineToEllipse] = None  # 连接左节点的线条
-        self.r_line: Optional[line_item.LineToEllipse] = None  # 连接右节点的线条
-        self.p_line: Optional[line_item.LineToEllipse] = None  # 连接父节点的线条
+        self.l_line: Optional[Line] = None  # 连接左节点的线条
+        self.r_line: Optional[Line] = None  # 连接右节点的线条
+        self.p_line: Optional[Line] = None  # 连接父节点的线条
 
         self.node = NodeItem(rect)
         self.val: str = val  # 节点值
