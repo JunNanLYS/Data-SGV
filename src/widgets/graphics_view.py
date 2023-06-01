@@ -3,7 +3,7 @@ import PySide6
 
 from typing import Tuple, Optional, Union
 from collections import defaultdict, deque
-from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPointF
+from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPointF, Signal
 from PySide6.QtGui import QCursor, QPainter, QTransform, QColor, QFont
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsSimpleTextItem, QGraphicsItem
 
@@ -15,6 +15,7 @@ from src.widgets.node_item import NodeItem
 
 
 class MyGraphicsView(QGraphicsView):
+    log = Signal(str)
 
     def __init__(self, parent=None):
         super(MyGraphicsView, self).__init__(parent)
@@ -26,6 +27,13 @@ class MyGraphicsView(QGraphicsView):
         # 初始化
         self.mouse: Optional[Qt.MouseButton] = Qt.MouseButton.NoButton  # 记录鼠标事件
         self.last_pos: Optional[QPoint, QPointF] = None  # 作用 -> 记录鼠标位置，移动view
+
+        self.setStyleSheet(
+            """
+            border-radius: 10px;
+            background-color: rgb(255, 255, 255);
+            """
+        )
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         self.mouse = event.button()
@@ -169,7 +177,7 @@ class BinaryTreeView(MyGraphicsView):
     def connect_node(self, parent: TreeNode, child: TreeNode, direction: str) -> None:
         """连接节点"""
 
-        line = GraphicsLineItem.new_line(parent, child)
+        line = GraphicsLineItem.new_line(parent, child, LineEnum.LINE)
         self.scene.addItem(line)
         self.animation_line_start(line)  # 连接节点
         child.p_line = line
@@ -345,6 +353,10 @@ class HeapView(MyGraphicsView):
 
 # 图
 class GraphView(MyGraphicsView):
+    clickedItem = Signal(int)  # 0 is line, 1 is node
+    # start, end, weight, lineType, name
+    itemInfo = Signal(str, str, str, str, str)
+
     def __init__(self):
         super(GraphView, self).__init__()
         # init config
@@ -353,6 +365,7 @@ class GraphView(MyGraphicsView):
         self.font_size = 8  # font size
         self.font_family = "Segoe"  # font family
         self.node_color = "default"  # node color
+        self.line_type = "ArrowLineWithWeight"
         # -----------------------------------------------------
 
         self.item_group = ItemGroup()
@@ -368,6 +381,7 @@ class GraphView(MyGraphicsView):
         self.scene.addItem(new_node)
         position = self.mapToScene(position)
         new_node.setPos(position - QPointF(new_node.r, new_node.r))
+        self.log.emit(f"created node: {new_node.name}")
         return new_node
 
     def new_node(self, name: str) -> GraphNode:
@@ -413,15 +427,38 @@ class GraphView(MyGraphicsView):
 
         self.item_group.pop(delete_item)
 
-    def connect_node(self, name1: str, name2: str, line_enum=LineEnum.ARROW_LINE_WITH_WEIGHT) -> None:
+    def connect_node(self, name1: str, name2: str) -> None:
         node1, node2 = self.nodes[name1], self.nodes[name2]
         if self.item_group.in_group(node1, node2):
             return
-        new_line = GraphicsLineItem.new_line(node1, node2, line_enum)
+        new_line = GraphicsLineItem.new_line(node1, node2, self.line_type)
         self.scene.addItem(new_line)
         node2.connect(node1, new_line)
         node1.connect(node2, new_line)
         self.item_group.add_items(node1, node2, new_line)
+        self.log.emit(f"connected node: {node1.name} to {node2.name}")
+
+    def change_line_type(self, line_name: str) -> None:
+        start_item = self.pre_item.start_item
+        end_item = self.pre_item.end_item
+        self.delete_item(self.pre_item)
+        new_line = GraphicsLineItem.new_line(start_item, end_item, line_name)
+        self.scene.addItem(new_line)
+        start_item.connect(end_item, new_line)
+        end_item.connect(start_item, new_line)
+        self.item_group.add_items(start_item, end_item, new_line)
+        self.log.emit(f"changed line: to {line_name}")
+        self.pre_item = new_line
+        return
+
+    def set_node_name(self, name: str) -> None:
+        old_name = self.pre_item.name
+        self.nodes.pop(old_name)
+        self.nodes[name] = self.pre_item
+        self.pre_item.name = name
+
+    def set_line_weight(self, weight: str) -> None:
+        self.pre_item.weight.setText(weight)
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mousePressEvent(event)
@@ -433,8 +470,14 @@ class GraphView(MyGraphicsView):
         if self.mouse is Qt.MouseButton.LeftButton:
             # 点击节点
             if isinstance(event_item, GraphNode):
+                self.clickedItem.emit(1)
+                self.itemInfo.emit("", "", "", "", event_item.name)
                 if event_item is self.pre_item:
                     self.pre_item.switch_mode("creator")
+                    return
+                elif isinstance(self.pre_item, Line):
+                    self.pre_item = event_item
+                    self.pre_item.switch_mode("selected")
                     return
                 # 第一次点击该节点
                 else:
@@ -449,7 +492,13 @@ class GraphView(MyGraphicsView):
                     return
             # 点击边
             elif isinstance(event_item, Line):
-                pass
+                self.clickedItem.emit(0)
+                self.itemInfo.emit(event_item.start_item.name, event_item.end_item.name,
+                                   event_item.weight.text(), event_item.CLASS_NAME, "")
+                if isinstance(self.pre_item, GraphNode):
+                    self.pre_item.switch_mode("default")
+                self.pre_item = event_item
+                return
             elif event_item is None:
                 # 创建新节点
                 if self.pre_item and type(self.pre_item) is GraphNode and self.pre_item.mode == "creator":
@@ -477,6 +526,15 @@ class GraphView(MyGraphicsView):
 
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mouseReleaseEvent(event)
+
+    def dfs(self):
+        pass
+
+    def bfs(self):
+        pass
+
+    def dijkstra(self):
+        pass
 
 
 class ItemGroup:

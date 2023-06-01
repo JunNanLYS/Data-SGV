@@ -18,7 +18,7 @@ class GraphNode(TextNodeItem):
         self.mode = "default"
 
         self.node.setPen(Qt.NoPen)
-        self.name = name  # 节点名称
+        self._name = name  # 节点名称
         self.update_node()  # 根据设置更新
 
     def add_node(self, node: "GraphNode") -> None:
@@ -88,6 +88,21 @@ class GraphNode(TextNodeItem):
             self.set_node_brush('red')
             self.node.setPen(QPen(QColor("black"), 2))
             self.mode = "creator"
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        self._name = new_name
+        self.text.setText(new_name)
+        r = self.r
+        w = self.text.boundingRect().center().x()
+        h = self.text.boundingRect().center().y()
+        self.text.setPos(r - w, r - h)
+
+
 
     def setPos(self,
                pos: Union[PySide6.QtCore.QPointF, PySide6.QtCore.QPoint, PySide6.QtGui.QPainterPath.Element]) -> None:

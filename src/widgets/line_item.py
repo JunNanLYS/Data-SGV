@@ -20,6 +20,8 @@ def polar_angle_y(y, r, angle):
 
 
 class Line(QGraphicsItemGroup):
+    CLASS_NAME = "Line"
+
     def __init__(self, start_item: QGraphicsItem, end_item: QGraphicsItem, parent: QGraphicsItem = None):
         super().__init__(parent)
         self._start_item = start_item
@@ -30,6 +32,9 @@ class Line(QGraphicsItemGroup):
         self.line_item = QGraphicsLineItem(self._line_start.x(), self._line_start.y(),
                                            self._line_end.x(), self._line_end.y(),
                                            self)
+        self.line_item.setPen(QPen(Qt.black, 2.5))
+        self.weight = QGraphicsSimpleTextItem(self)
+        self.weight.setText("")
 
         # add to group
         self.addToGroup(self.line_item)
@@ -98,7 +103,7 @@ class Line(QGraphicsItemGroup):
 
 
 class LineWithWeight(Line):
-    weight = None
+    CLASS_NAME = "LineWithWeight"
 
     def __init__(self, start_item: QGraphicsItem, end_item: QGraphicsItem, parent: QGraphicsItem = None):
         super().__init__(start_item, end_item, parent)
@@ -127,6 +132,7 @@ class LineWithWeight(Line):
 
 
 class ArrowLine(Line):
+    CLASS_NAME = "ArrowLine"
     triangleItem = None
 
     def __init__(self, start_item, end_item, parent=None):
@@ -153,6 +159,8 @@ class ArrowLine(Line):
 
 
 class ArrowLineWithWeight(ArrowLine, LineWithWeight):
+    CLASS_NAME = "ArrowLineWithWeight"
+
     def __init__(self, start_item, end_item, parent=None):
         super().__init__(start_item, end_item, parent)
 
@@ -168,9 +176,13 @@ class GraphicsLineItem:
     """工厂类"""
     line = {LineEnum.LINE: Line, LineEnum.LINE_WITH_WEIGHT: LineWithWeight,
             LineEnum.ARROW_LINE: ArrowLine, LineEnum.ARROW_LINE_WITH_WEIGHT: ArrowLineWithWeight}
+    string_to_enum = {"Line": LineEnum.LINE, "LineWithWeight": LineEnum.LINE_WITH_WEIGHT,
+                      "ArrowLine": LineEnum.ARROW_LINE, "ArrowLineWithWeight": LineEnum.ARROW_LINE_WITH_WEIGHT}
 
     @classmethod
-    def new_line(cls, start_item: QGraphicsItem, end_item: QGraphicsItem, line_type: LineEnum = LineEnum.LINE):
+    def new_line(cls, start_item: QGraphicsItem, end_item: QGraphicsItem, line_type: Union[LineEnum, str]):
+        if isinstance(line_type, str):
+            line_type = cls.string_to_enum[line_type]
         print(f"new line type is {line_type.value}")
         return cls.line[line_type](start_item, end_item)
 
@@ -191,8 +203,8 @@ if __name__ == "__main__":
     view.scene.addItem(node2)
     view.show()
 
-    line_ = GraphicsLineItem.new_line(node1, node2, LineEnum.LINE_WITH_WEIGHT)
+    line_ = GraphicsLineItem.new_line(node1, node2, LineEnum.ARROW_LINE)
     view.scene.addItem(line_)
-    line_.set_weight("250")
+    # line_.set_weight("250")
 
     app.exec()
