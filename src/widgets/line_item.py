@@ -3,8 +3,8 @@ from math import sin, cos
 from typing import Union
 
 import PySide6
-from PySide6.QtCore import QPointF, QLineF, Qt, QLine
-from PySide6.QtGui import QPen, QPolygonF
+from PySide6.QtCore import QPointF, QLineF, Qt, QLine, QRectF
+from PySide6.QtGui import QPen, QPolygonF, QColor
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItem, QGraphicsPolygonItem, QGraphicsItemGroup, \
     QGraphicsSimpleTextItem
 
@@ -21,6 +21,9 @@ def polar_angle_y(y, r, angle):
 
 class Line(QGraphicsItemGroup):
     CLASS_NAME = "Line"
+    DEFAULT_COLOR = QColor(153, 204, 255)  # blue
+    TRAVERSAL_COLOR = QColor(255, 0, 0)  # red
+    GRAY_COLOR = QColor(64, 64, 64)  # gray
 
     def __init__(self, start_item: QGraphicsItem, end_item: QGraphicsItem, parent: QGraphicsItem = None):
         super().__init__(parent)
@@ -32,7 +35,7 @@ class Line(QGraphicsItemGroup):
         self.line_item = QGraphicsLineItem(self._line_start.x(), self._line_start.y(),
                                            self._line_end.x(), self._line_end.y(),
                                            self)
-        self.line_item.setPen(QPen(Qt.black, 2.5))
+        self.line_item.setPen(QPen(self.DEFAULT_COLOR, 2.5))
         self.weight = QGraphicsSimpleTextItem(self)
         self.weight.setText("")
 
@@ -60,6 +63,18 @@ class Line(QGraphicsItemGroup):
 
     def setLine(self, line: Union[QLine, QLineF]):
         self.line.setLine(line)
+
+    def set_line_pen(self, color, size: float = 2.5):
+        self.line_item.setPen(QPen(color, size))
+
+    def traversal(self):
+        self.set_line_pen(self.TRAVERSAL_COLOR)
+
+    def default(self):
+        self.set_line_pen(self.DEFAULT_COLOR)
+
+    def animation(self):
+        pass
 
     @property
     def line(self):
@@ -126,6 +141,7 @@ class LineWithWeight(Line):
             else:
                 self.weight.setRotation(angle)
 
+
     def set_weight(self, weight: str):
         """set line weight"""
         self.weight.setText(weight)
@@ -140,8 +156,8 @@ class ArrowLine(Line):
         # init triangle
         triangle = QPolygonF([QPointF(0, 0), QPointF(-5, 10), QPointF(5, 10)])
         self.triangleItem = QGraphicsPolygonItem(triangle, self)  # 三角形
-        self.triangleItem.setPen(QPen(Qt.black, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))  # 设置三角形笔
-        self.triangleItem.setBrush(Qt.black)
+        self.triangleItem.setPen(QPen(self.GRAY_COLOR, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))  # 设置三角形笔
+        self.triangleItem.setBrush(self.GRAY_COLOR)
 
         angle = self.line.line().angle()
         self.triangleItem.setPos(self.line_end)
@@ -150,12 +166,25 @@ class ArrowLine(Line):
         # add to group
         self.addToGroup(self.triangleItem)
 
+
     def change(self):
         super().change()
         angle = self.line.line().angle()
         if self.triangleItem:
             self.triangleItem.setPos(self.line_end)
             self.triangleItem.setRotation(-angle + 90)
+
+    def set_arrow_pen(self, color, size: float = 3):
+        self.triangleItem.setPen(QPen(color, size, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        self.triangleItem.setBrush(color)
+
+    def traversal(self):
+        super().traversal()
+        self.set_arrow_pen(self.TRAVERSAL_COLOR)
+
+    def default(self):
+        super().default()
+        self.set_arrow_pen(self.GRAY_COLOR)
 
 
 class ArrowLineWithWeight(ArrowLine, LineWithWeight):

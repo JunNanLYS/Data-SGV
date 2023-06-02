@@ -13,8 +13,9 @@ from src import tool
 class GraphNode(TextNodeItem):
     def __init__(self, name: str, rect: Optional[QRect] = QRect(0, 0, 40, 40)):
         super(GraphNode, self).__init__(name, rect.x(), rect.y(), rect.width(), rect.height())
-        self.__connected_nodes = defaultdict(GraphNode)  # 存储连接的节点  name: node
-        self.__connected_lines = list()  # 存储与该节点连接的线
+        self.connected_nodes = defaultdict(GraphNode)  # 存储连接的节点  name: node
+        self.connected_lines = list()  # 存储与该节点连接的线
+
         self.mode = "default"
 
         self.node.setPen(Qt.NoPen)
@@ -27,21 +28,13 @@ class GraphNode(TextNodeItem):
         return
 
     def add_line(self, line) -> None:
-        """line: Optional[LineToEllipse, ArrowLine, LineWithWeight, ArrowLineWithWeight]"""
+        """line: Optional[Line, ArrowLine, LineWithWeight, ArrowLineWithWeight]"""
         self.connected_lines.append(line)
         return
 
     def connect(self, node, line):
         self.add_node(node)
         self.add_line(line)
-
-    @property
-    def connected_nodes(self) -> defaultdict:
-        return self.__connected_nodes
-
-    @property
-    def connected_lines(self) -> list:
-        return self.__connected_lines
 
     def disconnect(self, node: "GraphNode", line) -> None:
         self.pop_node(node)
@@ -89,6 +82,8 @@ class GraphNode(TextNodeItem):
             self.node.setPen(QPen(QColor("black"), 2))
             self.mode = "creator"
 
+
+
     @property
     def name(self):
         return self._name
@@ -102,10 +97,14 @@ class GraphNode(TextNodeItem):
         h = self.text.boundingRect().center().y()
         self.text.setPos(r - w, r - h)
 
-
-
     def setPos(self,
                pos: Union[PySide6.QtCore.QPointF, PySide6.QtCore.QPoint, PySide6.QtGui.QPainterPath.Element]) -> None:
         super().setPos(pos)
         for line in self.connected_lines:
             line.change()
+
+    def __str__(self):
+        return f"<GraphNode, id={id(self)}, name={self.name}>"
+
+    def __repr__(self):
+        return self.__str__()

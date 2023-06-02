@@ -2,12 +2,13 @@ import sys
 import PySide6
 
 from typing import Tuple, Optional, Union
+from datetime import datetime
 from collections import defaultdict, deque
 from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPointF, Signal
 from PySide6.QtGui import QCursor, QPainter, QTransform, QColor, QFont
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsSimpleTextItem, QGraphicsItem
 
-from src.widgets.line_item import GraphicsLineItem, Line, LineEnum
+from src.widgets.line_item import GraphicsLineItem, Line, LineEnum, ArrowLine
 from src.data_structure.binary_tree import TreeNode
 from src.data_structure.graph import GraphNode
 from src.tool import JsonSettingTool, stop_time
@@ -24,9 +25,10 @@ class MyGraphicsView(QGraphicsView):
         self.viewport().setProperty("cursor", QCursor(Qt.CrossCursor))  # 设置光标为十字型  ( + )
         self.setScene(self.scene)
 
-        # 初始化
+        # init
         self.mouse: Optional[Qt.MouseButton] = Qt.MouseButton.NoButton  # 记录鼠标事件
         self.last_pos: Optional[QPoint, QPointF] = None  # 作用 -> 记录鼠标位置，移动view
+        self.mouse_time = datetime.now()
 
         self.setStyleSheet(
             """
@@ -364,7 +366,7 @@ class GraphView(MyGraphicsView):
         self.font_color = "black"  # font color
         self.font_size = 8  # font size
         self.font_family = "Segoe"  # font family
-        self.node_color = "default"  # node color
+        self.node_color = GraphNode.DEFAULT_COLOR  # node color
         self.line_type = "ArrowLineWithWeight"
         # -----------------------------------------------------
 
@@ -373,6 +375,7 @@ class GraphView(MyGraphicsView):
         names = [x for x in range(1, 1001)]
         self.node_default_names = deque(map(str, names))
         self.pre_item: Optional[GraphNode, Line] = None  # 存储地址
+        self.traversal = False
 
     def add_node(self, position: QPoint) -> GraphNode:
         """添加新节点"""
@@ -424,12 +427,23 @@ class GraphView(MyGraphicsView):
                     print(f"在delete_item为line的情况下不应该出现连接同为line的item，检查item_group")
             else:
                 TypeError(f"delete_item: item is {item}")
+        nodes = []
+        if isinstance(delete_item, Line):
+            for item in self.item_group.find(delete_item):
+                if isinstance(item, GraphNode):
+                    nodes.append(item)
+        for i in range(len(nodes)):
+            self.item_group.pop_item(nodes[i], nodes)
+            for j in range(i + 1, len(nodes)):
+                nodes[i].pop_node(nodes[j])
+                nodes[j].pop_node(nodes[i])
 
         self.item_group.pop(delete_item)
 
     def connect_node(self, name1: str, name2: str) -> None:
         node1, node2 = self.nodes[name1], self.nodes[name2]
         if self.item_group.in_group(node1, node2):
+            print("connected")
             return
         new_line = GraphicsLineItem.new_line(node1, node2, self.line_type)
         self.scene.addItem(new_line)
@@ -463,9 +477,11 @@ class GraphView(MyGraphicsView):
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mousePressEvent(event)
         event_pos = event.position().toPoint()
-        event_item: Optional[NodeItem, QGraphicsSimpleTextItem] = self.itemAt(event_pos)
+        event_item: Optional[NodeItem, QGraphicsSimpleTextItem] = self.itemAt(self.mapToScene(event_pos).toPoint())
         if event_item:
             event_item = event_item.group()
+        if self.traversal:
+            self.redraw()
 
         if self.mouse is Qt.MouseButton.LeftButton:
             # 点击节点
@@ -489,6 +505,7 @@ class GraphView(MyGraphicsView):
                         self.pre_item.switch_mode("default")
                     self.pre_item = event_item
                     self.pre_item.switch_mode("selected")
+                    self.pre_item.select_animation()
                     return
             # 点击边
             elif isinstance(event_item, Line):
@@ -528,13 +545,51 @@ class GraphView(MyGraphicsView):
         super().mouseReleaseEvent(event)
 
     def dfs(self):
-        pass
+        if not isinstance(self.pre_item, GraphNode):
+            return
+        self.traversal = True
+        self.pre_item.switch_mode("default")
+        visited = set()
+        root = self.pre_item
+
+        def func(node: GraphNode) -> None:
+            node.set_node_brush(node.SELECTED_COLOR)
+            node.select_animation()
+            visited.add(node)
+            edges = node.connected_lines
+            for edge in edges:
+                # directed edge
+                if isinstance(edge, ArrowLine):
+                    if not (edge.start_item is node):
+                        continue
+                    edge.traversal()
+                    if edge.end_item not in visited:
+                        func(edge.end_item)
+                # undirected edge
+                else:
+                    edge.traversal()
+                    if edge.start_item is node and edge.end_item not in visited:
+                        func(edge.end_item)
+                    elif edge.end_item is node and edge.start_item not in visited:
+                        func(edge.start_item)
+
+        func(root)
 
     def bfs(self):
         pass
 
     def dijkstra(self):
         pass
+
+    def delete(self):
+        self.delete_item(self.pre_item)
+
+    def redraw(self):
+        """redraw all the items in the scene"""
+        for node in self.nodes.values():
+            node.set_node_brush(node.DEFAULT_COLOR)
+            for edge in node.connected_lines:
+                edge.default()
 
 
 class ItemGroup:
@@ -546,10 +601,12 @@ class ItemGroup:
         self.__items[value].append(key)
         return
 
-    def add_items(self, key, value, *args) -> None:
-        self.add_item(key, value)
-        for value in args:
-            self.add_item(key, value)
+    def add_items(self, *args) -> None:
+        for i in range(len(args)):
+            item1 = args[i]
+            for j in range(i + 1, len(args)):
+                item2 = args[j]
+                self.add_item(item1, item2)
         return
 
     def key_in_group(self, key) -> bool:
@@ -573,13 +630,12 @@ class ItemGroup:
     def pop_item(self, key, items: Union[list, tuple, QGraphicsItem]) -> None:
         """删除key中的item"""
         if isinstance(items, (list, tuple)):
-            for i, item in enumerate(items):
-                self.__items[key].pop(i)
+            for item in items:
+                if item in self.__items[key]:
+                    self.__items[key].remove(item)
         elif isinstance(items, QGraphicsItem):
-            for i, item in enumerate(self.__items[key]):
-                if item is items:
-                    self.__items[key].pop(i)
-                    break
+            if items in self.__items[key]:
+                self.__items[key].remove(items)
         else:
             raise TypeError(f"pop_item: items is {items}, type is {type(items)}")
         return

@@ -4,12 +4,15 @@ from typing import Union
 import PySide6
 from PySide6 import QtCore
 from PySide6.QtGui import QColor, QBrush, QFont, QPen
-from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsItemGroup, QGraphicsSimpleTextItem
+from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsItemGroup, QGraphicsSimpleTextItem, QGraphicsItemAnimation
+
+from src.tool import stop_time
 
 
 class NodeItem(QGraphicsItemGroup):
-    DEFAULT_COLOR = QBrush(QColor(58, 143, 192))  # 默认颜色(蓝色)
-    SELECTED_COLOR = QBrush(QColor(255, 0, 0))  # 红色
+    DEFAULT_COLOR = QColor(100, 255, 255)  # 默认颜色(blue)
+    SELECTED_COLOR = QColor(255, 0, 0)  # red
+    PATH_COLOR = QColor(102, 255, 102)  # green
 
     def __init__(self, x=0, y=0, w=30, h=30, parent=None):
         super().__init__(parent)
@@ -33,6 +36,20 @@ class NodeItem(QGraphicsItemGroup):
     def set_node_pen(self, pen: Union[QPen, QColor]):
         """ste node pen"""
         self.node.setPen(pen)
+
+    def select_animation(self):
+        anim = QGraphicsItemAnimation()
+        time_line = QtCore.QTimeLine(500)
+        anim.setItem(self.node)
+        anim.setTimeLine(time_line)
+        anim.setScaleAt(0.5, 1.15, 1.15)
+        anim.setScaleAt(0.75, 0.85, 0.85)
+        anim.setScaleAt(1.0, 1.0, 1.0)
+        anim.timeLine().start()
+        stop_time(millisecond=500)
+
+    def delete_animation(self):
+        pass
 
 
 class TextNodeItem(NodeItem):

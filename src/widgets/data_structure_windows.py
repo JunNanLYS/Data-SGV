@@ -3,7 +3,7 @@ from typing import Union
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QVBoxLayout, QWidget, QLayout, QLayoutItem, QHBoxLayout, QSpacerItem, QSizePolicy, QLabel
-from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox
+from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox, ToggleButton, PushButton
 
 from src.widgets.graphics_view import MyGraphicsView, BinaryTreeView, GraphView
 from src.widgets.settings import DefaultSettings, GraphSettings, TreeSettings
@@ -153,6 +153,9 @@ class GraphDataStructure(DataStructureWindow):
         self.line_edit_name.textEdited.connect(self.graphics_view.set_node_name)
         self.line_edit_weight.textEdited.connect(self.graphics_view.set_line_weight)
 
+        self.button_delete.clicked.connect(self.graphics_view.delete)
+        self.button_dfs.clicked.connect(self.graphics_view.dfs)
+
     def switch_model(self, model: int) -> None:
         """
         if model is 0, show edge info
@@ -170,7 +173,8 @@ class GraphDataStructure(DataStructureWindow):
         edge = [self.label_start, self.label_end, self.label_edge, self.label_weight,
                 self.line_edit_start, self.line_edit_end, self.line_edit_weight, self.combobox_edge]
         # node info widgets
-        node = [self.label_name, self.line_edit_name]
+        node = [self.label_name, self.line_edit_name,
+                self.button_dfs, self.button_bfs, self.button_dijkstra]
 
         if model == 0:
             show_widget(edge)
@@ -216,8 +220,12 @@ class GraphDataStructure(DataStructureWindow):
         self.layout_info = QVBoxLayout()
         self.widget_info = QWidget(self)
         self.widget_info.setLayout(self.layout_info)
+        self.widget_info.setStyleSheet("""
+        border-radius:8px;
+        background-color: rgb(255, 255, 255);
+        """)
 
-        self.label_info = QLabel("Info", self.widget_info)  # label info
+        self.label_info = QLabel("Info", self)  # label info
         self.label_info.setAlignment(Qt.AlignCenter)
         self.label_info.setFont(font_title)
         set_label_size(self.label_info)
@@ -239,6 +247,11 @@ class GraphDataStructure(DataStructureWindow):
         self.line_edit_weight = LineEdit(self.widget_info)
         self.combobox_edge = ComboBox(self.widget_info)
 
+        self.button_delete = PushButton(self.widget_info)
+        self.button_dfs = PushButton(self.widget_info)
+        self.button_bfs = PushButton(self.widget_info)
+        self.button_dijkstra = PushButton(self.widget_info)
+
         # init line edit
         self.line_edit_name.setPlaceholderText("name")
         self.line_edit_start.setPlaceholderText("start")
@@ -251,6 +264,12 @@ class GraphDataStructure(DataStructureWindow):
         self.combobox_edge.addItems(["Line", "LineWithWeight", "ArrowLine", "ArrowLineWithWeight"])  # edge type
         self.combobox_edge.setText("ArrowLineWithWeight")
 
+        # init button
+        self.button_delete.setText("Delete")
+        self.button_dfs.setText("DFS")
+        self.button_bfs.setText("BFS")
+        self.button_dijkstra.setText("Dijkstra")
+
         # init layout group
         layout_start = self.layout_group(QHBoxLayout, [self.label_start, self.line_edit_start])
         layout_end = self.layout_group(QHBoxLayout, [self.label_end, self.line_edit_end])
@@ -261,16 +280,22 @@ class GraphDataStructure(DataStructureWindow):
         layout_name = self.layout_group(QHBoxLayout, [self.label_name, self.line_edit_name])
 
         # add to layout
+        self.add_to_graphics_tool_layout(self.label_info)
         self.add_to_graphics_tool_layout(self.widget_info)
-        self.layout_info.addWidget(self.label_info)
         self.layout_info.addLayout(layout_start)
         self.layout_info.addLayout(layout_end)
         self.layout_info.addLayout(layout_weight)
         self.layout_info.addLayout(layout_edge)
         self.layout_info.addLayout(layout_name)
+        self.layout_info.addWidget(self.button_delete)
+        self.layout_info.addWidget(self.button_dfs)
+        self.layout_info.addWidget(self.button_bfs)
+        self.layout_info.addWidget(self.button_dijkstra)
 
         self.add_to_graphics_tool_layout(self.label_log)  # log
         self.add_to_graphics_tool_layout(self.log_widget)
+
+
 
 
 if __name__ == '__main__':
