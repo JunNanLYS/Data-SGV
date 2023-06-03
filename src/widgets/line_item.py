@@ -22,7 +22,7 @@ def polar_angle_y(y, r, angle):
 class Line(QGraphicsItemGroup):
     CLASS_NAME = "Line"
     DEFAULT_COLOR = QColor(153, 204, 255)  # blue
-    TRAVERSAL_COLOR = QColor(255, 0, 0)  # red
+    TRAVERSAL_COLOR = QColor(255, 102, 102)  # red
     GRAY_COLOR = QColor(64, 64, 64)  # gray
 
     def __init__(self, start_item: QGraphicsItem, end_item: QGraphicsItem, parent: QGraphicsItem = None):
@@ -59,7 +59,6 @@ class Line(QGraphicsItemGroup):
         x1, y1, x2, y2 = start_pos.x() + r, start_pos.y() + r, end_pos.x() + r, end_pos.y() + r  # 圆心
         self.line_start = QPointF(polar_angle_x(x1, r, angle1), polar_angle_y(y1, r, angle1))
         self.line_end = QPointF(polar_angle_x(x2, r, angle2), polar_angle_y(y2, r, angle2))
-        # self.setLine(QLine(self.line_start.x(), self.line_start.y(), self.line_end.x(), self.line_end.y()))
 
     def setLine(self, line: Union[QLine, QLineF]):
         self.line.setLine(line)
@@ -76,6 +75,9 @@ class Line(QGraphicsItemGroup):
     def animation(self):
         pass
 
+    def __repr__(self):
+        return f"<{self.CLASS_NAME}, id={id(self)}>"
+
     @property
     def line(self):
         return self.line_item
@@ -87,7 +89,7 @@ class Line(QGraphicsItemGroup):
     @line_start.setter
     def line_start(self, position: QPointF):
         self._line_start = position
-        self.line.setLine(QLineF(self._line_start, self._line_end))
+        self.setLine(QLineF(self.line_start, self.line_end))
 
     @property
     def line_end(self):
@@ -96,7 +98,7 @@ class Line(QGraphicsItemGroup):
     @line_end.setter
     def line_end(self, position: QPointF):
         self._line_end = position
-        self.line.setLine(QLineF(self._line_start, self._line_end))
+        self.setLine(QLineF(self.line_start, self.line_end))
 
     @property
     def start_item(self):
@@ -105,7 +107,6 @@ class Line(QGraphicsItemGroup):
     @start_item.setter
     def start_item(self, item: QGraphicsItem):
         self._start_item = item
-        self.change()
 
     @property
     def end_item(self):
@@ -114,7 +115,6 @@ class Line(QGraphicsItemGroup):
     @end_item.setter
     def end_item(self, item: QGraphicsItem):
         self._end_item = item
-        self.change()
 
 
 class LineWithWeight(Line):
@@ -141,7 +141,6 @@ class LineWithWeight(Line):
             else:
                 self.weight.setRotation(angle)
 
-
     def set_weight(self, weight: str):
         """set line weight"""
         self.weight.setText(weight)
@@ -166,7 +165,6 @@ class ArrowLine(Line):
         # add to group
         self.addToGroup(self.triangleItem)
 
-
     def change(self):
         super().change()
         angle = self.line.line().angle()
@@ -185,6 +183,11 @@ class ArrowLine(Line):
     def default(self):
         super().default()
         self.set_arrow_pen(self.GRAY_COLOR)
+
+    def change_triangleItem(self):
+        angle = self.line.line().angle()
+        self.triangleItem.setPos(self.line_end)
+        self.triangleItem.setRotation(-angle + 90)
 
 
 class ArrowLineWithWeight(ArrowLine, LineWithWeight):

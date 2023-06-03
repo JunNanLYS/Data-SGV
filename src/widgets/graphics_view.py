@@ -1,18 +1,18 @@
 import sys
-import PySide6
-
-from typing import Tuple, Optional, Union
-from datetime import datetime
 from collections import defaultdict, deque
+from datetime import datetime
+from typing import Tuple, Optional, Union
+
+import PySide6
 from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPointF, Signal
 from PySide6.QtGui import QCursor, QPainter, QTransform, QColor, QFont
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsSimpleTextItem, QGraphicsItem
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsItem
 
-from src.widgets.line_item import GraphicsLineItem, Line, LineEnum, ArrowLine
 from src.data_structure.binary_tree import TreeNode
 from src.data_structure.graph import GraphNode
 from src.tool import JsonSettingTool, stop_time
-from src.widgets.node_item import NodeItem
+from src.widgets.line_item import GraphicsLineItem, Line, LineEnum, ArrowLine
+from src.widgets.node_item import NodeModeEnum
 
 
 class MyGraphicsView(QGraphicsView):
@@ -356,8 +356,9 @@ class HeapView(MyGraphicsView):
 # 图
 class GraphView(MyGraphicsView):
     clickedItem = Signal(int)  # 0 is line, 1 is node
-    # start, end, weight, lineType, name
-    itemInfo = Signal(str, str, str, str, str)
+    nodeInfo = Signal(int, str)
+    edgeInfo = Signal(int, str, str, str, str)
+    diaLog = Signal(str, str)
 
     def __init__(self):
         super(GraphView, self).__init__()
@@ -367,11 +368,12 @@ class GraphView(MyGraphicsView):
         self.font_size = 8  # font size
         self.font_family = "Segoe"  # font family
         self.node_color = GraphNode.DEFAULT_COLOR  # node color
-        self.line_type = "ArrowLineWithWeight"
+        self.edge_type = "ArrowLineWithWeight"
         # -----------------------------------------------------
 
         self.item_group = ItemGroup()
         self.nodes = defaultdict(GraphNode)  # name: GraphNode object
+        self.animation_edge: Optional[Line] = None
         names = [x for x in range(1, 1001)]
         self.node_default_names = deque(map(str, names))
         self.pre_item: Optional[GraphNode, Line] = None  # 存储地址
@@ -394,75 +396,54 @@ class GraphView(MyGraphicsView):
         font.setFamily(self.font_family)
         res_node.set_text_font(font)
         res_node.set_text_brush(self.font_color)
-        if self.node_color != "default":
-            res_node.set_node_brush(self.node_color)
         return res_node
 
     def delete_item(self, delete_item: Union[GraphNode, Line]) -> None:
-        state = 0  # 表示状态 0执行删除边逻辑, 1执行删除节点逻辑
         if isinstance(delete_item, GraphNode):
-            state = 1
-        self.scene.removeItem(delete_item)  # 将其从场景中删除
-
-        # 遍历所有与要被删除节点有关的item
-        for item in self.item_group.find(delete_item):
-            if isinstance(item, GraphNode):
-                self.item_group.pop_item(item, delete_item)
-                # delete_node is GraphNode
-                if state:
-                    item.pop_node(delete_item)
-                # delete_node is Line
-                else:
-                    item.pop_line(delete_item)
-            elif isinstance(item, Line):
-                self.item_group.pop_item(item, delete_item)
-                if state:
-                    # 所有与delete_item有关的line都要从scene中删除
-                    self.scene.removeItem(item)
-                    if self.item_group.key_in_group(item):
-                        for disconnect_item in self.item_group.find(item):
-                            self.item_group.pop_item(disconnect_item, item)
-                    self.item_group.pop(item)
-                else:
-                    print(f"在delete_item为line的情况下不应该出现连接同为line的item，检查item_group")
-            else:
-                TypeError(f"delete_item: item is {item}")
-        nodes = []
-        if isinstance(delete_item, Line):
-            for item in self.item_group.find(delete_item):
-                if isinstance(item, GraphNode):
-                    nodes.append(item)
-        for i in range(len(nodes)):
-            self.item_group.pop_item(nodes[i], nodes)
-            for j in range(i + 1, len(nodes)):
-                nodes[i].pop_node(nodes[j])
-                nodes[j].pop_node(nodes[i])
-
-        self.item_group.pop(delete_item)
+            delete_edges = delete_item.edges
+            while delete_edges:
+                edge = delete_edges.pop()
+                start_item = edge.start_item
+                end_item = edge.end_item
+                start_item.remove_edge(edge)
+                end_item.remove_edge(edge)
+                self.item_group.pop_item(start_item, end_item)
+                self.item_group.pop_item(end_item, start_item)
+                self.scene.removeItem(edge)
+            self.scene.removeItem(delete_item)
+            self.nodes.pop(delete_item.name)
+        elif isinstance(delete_item, Line):
+            start_item = delete_item.start_item
+            end_item = delete_item.end_item
+            start_item.remove_edge(delete_item)
+            end_item.remove_edge(delete_item)
+            self.item_group.pop_item(start_item, end_item)
+            self.item_group.pop_item(end_item, start_item)
+            self.scene.removeItem(delete_item)
 
     def connect_node(self, name1: str, name2: str) -> None:
         node1, node2 = self.nodes[name1], self.nodes[name2]
         if self.item_group.in_group(node1, node2):
             print("connected")
             return
-        new_line = GraphicsLineItem.new_line(node1, node2, self.line_type)
-        self.scene.addItem(new_line)
-        node2.connect(node1, new_line)
-        node1.connect(node2, new_line)
-        self.item_group.add_items(node1, node2, new_line)
+        new_edge = GraphicsLineItem.new_line(node1, node2, self.edge_type)
+        self.scene.addItem(new_edge)
+        node1.add_edge(new_edge)
+        node2.add_edge(new_edge)
+        self.item_group.add_items(node1, node2)
         self.log.emit(f"connected node: {node1.name} to {node2.name}")
 
-    def change_line_type(self, line_name: str) -> None:
+    def change_edge_type(self, edge_name: str) -> None:
         start_item = self.pre_item.start_item
         end_item = self.pre_item.end_item
         self.delete_item(self.pre_item)
-        new_line = GraphicsLineItem.new_line(start_item, end_item, line_name)
-        self.scene.addItem(new_line)
-        start_item.connect(end_item, new_line)
-        end_item.connect(start_item, new_line)
-        self.item_group.add_items(start_item, end_item, new_line)
-        self.log.emit(f"changed line: to {line_name}")
-        self.pre_item = new_line
+        new_edge = GraphicsLineItem.new_line(start_item, end_item, edge_name)
+        self.scene.addItem(new_edge)
+        start_item.add_edge(new_edge)
+        end_item.add_edge(new_edge)
+        self.item_group.add_items(start_item, end_item)
+        self.log.emit(f"changed line: to {edge_name}")
+        self.pre_item = new_edge
         return
 
     def set_node_name(self, name: str) -> None:
@@ -477,68 +458,55 @@ class GraphView(MyGraphicsView):
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mousePressEvent(event)
         event_pos = event.position().toPoint()
-        event_item: Optional[NodeItem, QGraphicsSimpleTextItem] = self.itemAt(self.mapToScene(event_pos).toPoint())
+        event_item = self.itemAt(event_pos)
         if event_item:
             event_item = event_item.group()
         if self.traversal:
             self.redraw()
 
         if self.mouse is Qt.MouseButton.LeftButton:
-            # 点击节点
+            # node
             if isinstance(event_item, GraphNode):
                 self.clickedItem.emit(1)
-                self.itemInfo.emit("", "", "", "", event_item.name)
-                if event_item is self.pre_item:
-                    self.pre_item.switch_mode("creator")
-                    return
-                elif isinstance(self.pre_item, Line):
-                    self.pre_item = event_item
-                    self.pre_item.switch_mode("selected")
-                    return
-                # 第一次点击该节点
-                else:
-                    # 有节点处于creator模式且点击另外一个节点
-                    if self.pre_item and self.pre_item.mode == "creator":
-                        self.pre_item.switch_mode("default")
+                # first click
+                if event_item.mode is NodeModeEnum.DEFAULT:
+                    event_item.switch_mode(NodeModeEnum.SELECTED)
+                # second click
+                elif event_item.mode is NodeModeEnum.SELECTED:
+                    event_item.switch_mode(NodeModeEnum.CREATOR)
+                if isinstance(self.pre_item, GraphNode) and self.pre_item != event_item:
+                    if self.pre_item.mode is NodeModeEnum.CREATOR:
                         self.connect_node(self.pre_item.name, event_item.name)
-                    elif self.pre_item:
-                        self.pre_item.switch_mode("default")
-                    self.pre_item = event_item
-                    self.pre_item.switch_mode("selected")
-                    self.pre_item.select_animation()
-                    return
-            # 点击边
+                    self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
+                self.pre_item = event_item
+                self.nodeInfo.emit(0, event_item.name)
+            # edge
             elif isinstance(event_item, Line):
                 self.clickedItem.emit(0)
-                self.itemInfo.emit(event_item.start_item.name, event_item.end_item.name,
-                                   event_item.weight.text(), event_item.CLASS_NAME, "")
                 if isinstance(self.pre_item, GraphNode):
-                    self.pre_item.switch_mode("default")
+                    self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
+                self.edgeInfo.emit(1, event_item.start_item.name, event_item.end_item.name,
+                                   event_item.weight, event_item.CLASS_NAME)
                 self.pre_item = event_item
-                return
+            # create new node
             elif event_item is None:
-                # 创建新节点
-                if self.pre_item and type(self.pre_item) is GraphNode and self.pre_item.mode == "creator":
-                    self.pre_item.switch_mode("default")
-                    new_node = self.add_node(event_pos)
+                # create new node and connect to pre_item
+                new_node = self.add_node(event_pos)
+                if isinstance(self.pre_item, GraphNode) and self.pre_item.mode is NodeModeEnum.CREATOR:
                     self.connect_node(self.pre_item.name, new_node.name)
-                    self.pre_item = None
-                else:
-                    if self.pre_item and type(self.pre_item) is GraphNode:
-                        self.pre_item.switch_mode("default")
-                    self.pre_item = None
-                    self.add_node(event_pos)
-                return
+                if isinstance(self.pre_item, GraphNode):
+                    self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
         elif self.mouse is Qt.MouseButton.RightButton:
-            if self.pre_item and type(self.pre_item) is GraphNode:
-                self.pre_item.switch_mode("default")
+            if self.pre_item and isinstance(self.pre_item, GraphNode):
+                self.pre_item.switch_mode(NodeModeEnum.DEFAULT, False)
                 self.pre_item = None
+        self.pre_item = event_item
 
     def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mouseMoveEvent(event)
         event_pos = event.position().toPoint()
         event_pos_scene = self.mapToScene(event_pos)
-        if self.mouse is Qt.MouseButton.LeftButton and self.pre_item:
+        if self.mouse is Qt.MouseButton.LeftButton and isinstance(self.pre_item, GraphNode):
             self.pre_item.setPos(event_pos_scene - QPointF(self.pre_item.r, self.pre_item.r))
 
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
@@ -548,7 +516,7 @@ class GraphView(MyGraphicsView):
         if not isinstance(self.pre_item, GraphNode):
             return
         self.traversal = True
-        self.pre_item.switch_mode("default")
+        self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
         visited = set()
         root = self.pre_item
 
@@ -556,39 +524,121 @@ class GraphView(MyGraphicsView):
             node.set_node_brush(node.SELECTED_COLOR)
             node.select_animation()
             visited.add(node)
-            edges = node.connected_lines
+            edges = node.edges
             for edge in edges:
                 # directed edge
                 if isinstance(edge, ArrowLine):
-                    if not (edge.start_item is node):
-                        continue
-                    edge.traversal()
-                    if edge.end_item not in visited:
+                    if edge.start_item is node and edge.end_item not in visited:
+                        self.animation_edge_start(edge, True)
+                        edge.traversal()
+                        self.log.emit(f"traversal: {node.name} -> {edge.end_item.name}")
                         func(edge.end_item)
                 # undirected edge
                 else:
-                    edge.traversal()
                     if edge.start_item is node and edge.end_item not in visited:
+                        self.animation_edge_start(edge, True)
+                        edge.traversal()
+                        self.log.emit(f"traversal: {node.name} -> {edge.end_item.name}")
                         func(edge.end_item)
                     elif edge.end_item is node and edge.start_item not in visited:
+                        self.animation_edge_start(edge)
+                        edge.traversal()
+                        self.log.emit(f"traversal: {node.name} -> {edge.start_item.name}")
                         func(edge.start_item)
 
         func(root)
 
     def bfs(self):
-        pass
+        if not isinstance(self.pre_item, GraphNode):
+            return
+        self.traversal = True
+        self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
+        visited = set()
+        root: GraphNode = self.pre_item
+        root.switch_mode(NodeModeEnum.SELECTED)
+        root.select_animation()
+        visited.add(root)
+        queue = [root]
+        while queue:
+            temp = []
+            for node in queue:
+                edges = node.edges
+                for edge in edges:
+                    # directed edge
+                    if isinstance(edge, ArrowLine) and edge.start_item is node and edge.end_item not in visited:
+                        self.animation_edge_start(edge, True)
+                        edge.traversal()
+                        self.log.emit(f"traversal: {node.name} -> {edge.end_item.name}")
+                        temp.append(edge.end_item)
+                        edge.end_item.switch_mode(NodeModeEnum.SELECTED)
+                        edge.end_item.select_animation()
+                        visited.add(edge.end_item)
+                    # undirected edge
+                    else:
+                        if edge.start_item is node and edge.end_item not in visited:
+                            self.animation_edge_start(edge, True)
+                            edge.traversal()
+                            self.log.emit(f"traversal: {node.name} -> {edge.end_item.name}")
+                            temp.append(edge.end_item)
+                            edge.end_item.switch_mode(NodeModeEnum.SELECTED)
+                            edge.end_item.select_animation()
+                            visited.add(edge.end_item)
+                        elif edge.end_item is node and edge.start_item not in visited:
+                            self.animation_edge_start(edge)
+                            edge.traversal()
+                            self.log.emit(f"traversal: {node.name} -> {edge.start_item.name}")
+                            temp.append(edge.start_item)
+                            edge.end_item.switch_mode(NodeModeEnum.SELECTED)
+                            edge.end_item.select_animation()
+                            visited.add(edge.end_item)
+            queue = temp
 
     def dijkstra(self):
-        pass
+        self.diaLog.emit("警告", "该内容暂时不开放")
 
     def delete(self):
         self.delete_item(self.pre_item)
+
+    def animation_edge_start(self, edge: Optional[Line], flag=False):
+        self.animation_edge = edge
+
+        anim = QPropertyAnimation(self, b'set_line_start')
+        anim.setStartValue(edge.line_end)
+        anim.setEndValue(edge.line_start)
+        if flag:
+            anim = QPropertyAnimation(self, b'set_line_end')
+            anim.setStartValue(edge.line_start)
+            anim.setEndValue(edge.line_end)
+
+        anim.setDuration(self.animation_time)
+        anim.start()
+        stop_time(millisecond=self.animation_time)
+
+    @Property(QPointF)
+    def set_line_end(self):
+        return self.animation_edge.line_end
+
+    @set_line_end.setter
+    def set_line_end(self, p: QPointF):
+        self.animation_edge.line_end = p
+        if isinstance(self.animation_edge, ArrowLine):
+            self.animation_edge.change_triangleItem()
+
+    @Property(QPointF)
+    def set_line_start(self):
+        return self.animation_edge.line_start
+
+    @set_line_start.setter
+    def set_line_start(self, p: QPointF):
+        self.animation_edge.line_start = p
+        if isinstance(self.animation_edge, ArrowLine):
+            self.animation_edge.change_triangleItem()
 
     def redraw(self):
         """redraw all the items in the scene"""
         for node in self.nodes.values():
             node.set_node_brush(node.DEFAULT_COLOR)
-            for edge in node.connected_lines:
+            for edge in node.edges:
                 edge.default()
 
 
@@ -651,34 +701,34 @@ class ItemGroup:
 
 if __name__ == '__main__':
     # -----------二叉树----------
-    app = QApplication(sys.argv)
-    view = BinaryTreeView()
-    view.show()
-    view.resize(500, 500)
-    view.add_node('10')
-    view.add_node('20')
-    view.add_node('5')
-    view.add_node("15")
-    view.add_node("25")
-    view.add_node("7")
-    view.search_node('15')
-    view.delete_node("20")
-    sys.exit(app.exec())
+    # app = QApplication(sys.argv)
+    # view = BinaryTreeView()
+    # view.show()
+    # view.resize(500, 500)
+    # view.add_node('10')
+    # view.add_node('20')
+    # view.add_node('5')
+    # view.add_node("15")
+    # view.add_node("25")
+    # view.add_node("7")
+    # view.search_node('15')
+    # view.delete_node("20")
+    # sys.exit(app.exec())
 
     # ------------图-------------
-    # app = QApplication(sys.argv)
-    # view = GraphView()
-    # ZheJiang = GraphNode('Name1')
-    # ShangHai = GraphNode('Name2')
-    # view.scene.addItem(ZheJiang)
-    # view.scene.addItem(ShangHai)
-    # view.nodes['Name1'] = ZheJiang
-    # view.nodes['Name2'] = ShangHai
-    # ZheJiang.setPos(QPointF(300, 100))
-    # ShangHai.setPos(QPointF(400, 100))
-    # # view.connect_node("Name1", "Name2")
-    # # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
-    # # view.scene.addItem(line)
-    #
-    # view.show()
-    # sys.exit(app.exec())
+    app = QApplication(sys.argv)
+    view = GraphView()
+    ZheJiang = GraphNode('Name1')
+    ShangHai = GraphNode('Name2')
+    view.scene.addItem(ZheJiang)
+    view.scene.addItem(ShangHai)
+    view.nodes['Name1'] = ZheJiang
+    view.nodes['Name2'] = ShangHai
+    ZheJiang.setPos(QPointF(300, 100))
+    ShangHai.setPos(QPointF(400, 100))
+    # view.connect_node("Name1", "Name2")
+    # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
+    # view.scene.addItem(line)
+
+    view.show()
+    sys.exit(app.exec())

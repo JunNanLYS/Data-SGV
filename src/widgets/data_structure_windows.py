@@ -1,9 +1,10 @@
 from typing import Union
+from viztracer import VizTracer
 
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QVBoxLayout, QWidget, QLayout, QLayoutItem, QHBoxLayout, QSpacerItem, QSizePolicy, QLabel
-from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox, ToggleButton, PushButton
+from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox, PushButton, Dialog
 
 from src.widgets.graphics_view import MyGraphicsView, BinaryTreeView, GraphView
 from src.widgets.settings import DefaultSettings, GraphSettings, TreeSettings
@@ -94,6 +95,10 @@ class DataStructureWindow(DataStructureWidget):
             return
         self.showFullScreen()
 
+    def show_dialog(self, title, text):
+        dialog = Dialog(title, text)
+        dialog.show()
+
     def __init_menu_widget(self):
         # init layout
         self.layout_menu = QHBoxLayout()
@@ -146,21 +151,32 @@ class GraphDataStructure(DataStructureWindow):
         # signal connect slot
         self.graphics_view.log.connect(self.log_widget.add)
         self.graphics_view.clickedItem.connect(self.switch_model)
-        self.graphics_view.itemInfo.connect(self.set_info)
+        self.graphics_view.nodeInfo.connect(self.set_info)
+        self.graphics_view.edgeInfo.connect(self.set_info)
+        self.graphics_view.diaLog.connect(self.show_dialog)
 
-        self.combobox_edge.currentTextChanged.connect(self.graphics_view.change_line_type)
+        self.combobox_edge.currentTextChanged.connect(self.graphics_view.change_edge_type)
 
         self.line_edit_name.textEdited.connect(self.graphics_view.set_node_name)
         self.line_edit_weight.textEdited.connect(self.graphics_view.set_line_weight)
 
         self.button_delete.clicked.connect(self.graphics_view.delete)
+
+        self.button_dfs.clicked.connect(self.log_widget.clear)
         self.button_dfs.clicked.connect(self.graphics_view.dfs)
+
+        self.button_bfs.clicked.connect(self.log_widget.clear)
+        self.button_bfs.clicked.connect(self.graphics_view.bfs)
+
+        self.button_dijkstra.clicked.connect(self.log_widget.clear)
+        self.button_dijkstra.clicked.connect(self.graphics_view.dijkstra)
 
     def switch_model(self, model: int) -> None:
         """
         if model is 0, show edge info
         if model is 1, show node info
         """
+
         def show_widget(widgets: list[QWidget]):
             for widget in widgets:
                 widget.show()
@@ -183,12 +199,16 @@ class GraphDataStructure(DataStructureWindow):
             show_widget(node)
             hide_widget(edge)
 
-    def set_info(self, start: str, end: str, weight: str, edge: str, name: str):
-        self.line_edit_start.setText(start)
-        self.line_edit_end.setText(end)
-        self.line_edit_weight.setText(weight)
-        self.combobox_edge.setText(edge)
-        self.line_edit_name.setText(name)
+    def set_info(self, typ, *args):
+        if typ == 0:
+            name, *_ = args
+            self.line_edit_name.setText(name)
+        elif typ == 1:
+            start, end, weight, edge = args
+            self.line_edit_start.setText(start)
+            self.line_edit_end.setText(end)
+            self.line_edit_weight.setText(weight)
+            self.combobox_edge.setCurrentText(edge)
 
     def __init_menu_widget(self):
         pass
@@ -294,8 +314,6 @@ class GraphDataStructure(DataStructureWindow):
 
         self.add_to_graphics_tool_layout(self.label_log)  # log
         self.add_to_graphics_tool_layout(self.log_widget)
-
-
 
 
 if __name__ == '__main__':

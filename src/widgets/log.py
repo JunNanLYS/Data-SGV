@@ -7,7 +7,6 @@ from qfluentwidgets import PlainTextEdit, Dialog
 class LogWidget(PlainTextEdit):
     add = Signal(str)
     added = Signal()
-    clean = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -25,7 +24,6 @@ class LogWidget(PlainTextEdit):
 
         # signal connect slot
         self.add.connect(self.receive_message)
-        self.clean.connect(self.clear)
 
     def append(self, text):
         """新增Log"""

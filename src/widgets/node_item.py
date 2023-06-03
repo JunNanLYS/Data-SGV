@@ -3,19 +3,34 @@ from typing import Union
 
 import PySide6
 from PySide6 import QtCore
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QBrush, QFont, QPen
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsItemGroup, QGraphicsSimpleTextItem, QGraphicsItemAnimation
 
 from src.tool import stop_time
 
 
+class NodeEnum(Enum):
+    NODE_ITEM = "NodeItem"
+    TEXT_NODE_ITEM = "TextNodeItem"
+
+
+class NodeModeEnum(Enum):
+    DEFAULT = "Default"
+    SELECTED = "Selected"
+    CREATOR = "Creator"
+    PATH = "Path"
+
+
 class NodeItem(QGraphicsItemGroup):
     DEFAULT_COLOR = QColor(100, 255, 255)  # 默认颜色(blue)
-    SELECTED_COLOR = QColor(255, 0, 0)  # red
+    SELECTED_COLOR = QColor(255, 102, 102)  # red
+    CREATOR_COLOR = QColor(204, 153, 255)
     PATH_COLOR = QColor(102, 255, 102)  # green
 
     def __init__(self, x=0, y=0, w=30, h=30, parent=None):
         super().__init__(parent)
+        self.mode = NodeModeEnum.DEFAULT
         self.node = QGraphicsEllipseItem(x, y, w, h, self)  # 创建圆形
         self.r = self.node.boundingRect().center().x()
 
@@ -36,6 +51,33 @@ class NodeItem(QGraphicsItemGroup):
     def set_node_pen(self, pen: Union[QPen, QColor]):
         """ste node pen"""
         self.node.setPen(pen)
+
+    def switch_mode(self, mode: NodeModeEnum, border=True, **kwargs):
+        self.mode = mode
+        if mode is NodeModeEnum.DEFAULT:
+            color = kwargs.get("color", self.DEFAULT_COLOR)
+            pen = kwargs.get("pen", Qt.NoPen)
+            self.set_node_brush(color)
+            self.set_node_pen(pen)
+        elif mode is NodeModeEnum.SELECTED:
+            color = kwargs.get("color", self.SELECTED_COLOR)
+            pen = kwargs.get("pen", Qt.NoPen)
+            self.set_node_brush(color)
+            self.set_node_pen(pen)
+        elif mode is NodeModeEnum.CREATOR:
+            color = kwargs.get("color", self.CREATOR_COLOR)
+            pen = kwargs.get("pen", QPen(QColor("red"), 2))
+            self.set_node_brush(color)
+            self.set_node_pen(pen)
+        elif mode is NodeModeEnum.PATH:
+            color = kwargs.get("color", self.PATH_COLOR)
+            pen = kwargs.get("pen", Qt.NoPen)
+            self.set_node_brush(color)
+            self.set_node_pen(pen)
+
+        # close pen
+        if not border:
+            self.set_node_pen(Qt.NoPen)
 
     def select_animation(self):
         anim = QGraphicsItemAnimation()
@@ -77,11 +119,6 @@ class TextNodeItem(NodeItem):
 
     def set_text_brush(self, color: Union[QColor, str]) -> None:
         self.text.setBrush(QBrush(color))
-
-
-class NodeEnum(Enum):
-    NODE_ITEM = "NodeItem"
-    TEXT_NODE_ITEM = "TextNodeItem"
 
 
 class GraphicsEllipseItem:
