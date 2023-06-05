@@ -15,4 +15,3 @@ Visualization of data structure makes it easier for students to learn data struc
 ## Video Demonstration
 
 ...
-
