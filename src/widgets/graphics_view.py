@@ -154,7 +154,6 @@ class BinaryTreeView(MyGraphicsView):
 
         self.redraw()
 
-
     @Property(QPointF)
     def connect_line(self):
         return self.animation_line.line_end
