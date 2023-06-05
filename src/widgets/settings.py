@@ -38,6 +38,24 @@ class DefaultSettings(UiSetting):
     opened = Signal()  # 打开信号
     closed = Signal()  # 关闭信号
 
+    # init setting config
+    settings_dict = {
+        "global": {
+            "version": 0.1,
+            "animation_speed": 1.0
+        },
+        "tree": {
+            "font_size": 8,
+            "font_color": "black"
+        },
+        "graph": {
+            "font_size": 8,
+            "font_color": "black",
+            "font_family": "Segoe",
+            "edge": "ArrowLineWithWeight"
+        }
+    }
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout_local: Optional[QLayout] = None
@@ -54,21 +72,6 @@ class DefaultSettings(UiSetting):
         self.scroll_area.setWidget(self.scroll_area_widget)
         self.layout_main = QVBoxLayout(self.scroll_area_widget)
 
-        # init setting config
-        self.settings_dict = {
-            "global": {
-                "version": 0.1,
-                "animation_speed": 1.0
-            },
-            "tree": {},
-            "graph": {
-                "font_size": 8,
-                "font_color": "black",
-                "font_family": "SimSum",
-                "edge": "ArrowLineWithWeight"
-            }
-        }
-
         # init widget
         self.__init_global_setting()
         self.__init_local_setting()
@@ -83,6 +86,8 @@ class DefaultSettings(UiSetting):
         self.parent().openSetting.connect(self.open)
         self.button_save.clicked.connect(self.save)
         self.saved.connect(self.parent().hide_mask)
+
+        self.slider_animation_speed.valueChanged.connect(self.set_animation_speed)
 
         # size
         self.resize(parent.width() // 4, parent.height())
@@ -139,6 +144,7 @@ class DefaultSettings(UiSetting):
         print("---open animation---")
         self.show()
         self.raise_()
+        self.__config()
         self.anim.setTargetObject(self)
         self.anim.setPropertyName(b"open_animation")
         self.anim.setStartValue(self.x() - self.width())
@@ -155,8 +161,12 @@ class DefaultSettings(UiSetting):
 
     def save(self):
         """save to json file"""
-        animation_speed = self.label_animation_speed.text().split(": ")[1]
-        self.settings_dict["animation_speed"] = animation_speed
+        animation_speed = round(self.slider_animation_speed.value() * 0.1, 1)
+        self.settings_dict['global']["animation_speed"] = animation_speed
+
+    def set_animation_speed(self):
+        value = self.slider_animation_speed.value()
+        self.label_animation_speed.setText(f"Animation speed: {round(value * 0.1, 1)}")
 
     @Slot(int, int)
     def parent_changed(self, width, height):
@@ -169,7 +179,7 @@ class DefaultSettings(UiSetting):
         version = global_config["version"]
 
         # load
-        self.label_animation_speed.setText(f"Animation speed: {animation_speed}")
+        self.slider_animation_speed.setValue(int(animation_speed * 10))
         self.label_version.setText(f"Version: {version}")
         return
 
@@ -230,6 +240,8 @@ class DefaultSettings(UiSetting):
         self.slider_animation_speed = Slider(self.scroll_area_widget)
         self.slider_animation_speed.setMaximumSize(QSize(16777215, 20))
         self.slider_animation_speed.setOrientation(Qt.Horizontal)
+        self.slider_animation_speed.setMinimum(1)
+        self.slider_animation_speed.setMaximum(10)
 
         # layout init
         self.layout_global = QVBoxLayout()
@@ -250,16 +262,63 @@ class DefaultSettings(UiSetting):
 class TreeSettings(DefaultSettings):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.__init_local_setting()
+        self.__config()
 
     def save(self):
-        self.saved.emit()  # 触发信号
+        super().save()
+        font_size = self.spinbox_font_size.value()
+        font_color = self.combobox_font_color.text()
+
+        self.settings_dict["tree"]["font_size"] = font_size
+        self.settings_dict["tree"]["font_color"] = font_color
+        self.saved.emit(self.settings_dict)  # 触发信号
         pass
+
+    def open(self):
+        super().open()
+        self.__config()
 
     def __config(self):
-        pass
+        # read
+        font_size = self.settings_dict["tree"]["font_size"]
+        font_color = self.settings_dict["tree"]["font_color"]
+
+        # load
+        self.spinbox_font_size.setValue(font_size)
+        self.combobox_font_color.setCurrentText(font_color)
 
     def __init_local_setting(self):
-        pass
+        font = QFont()
+        font.setFamilies(["Segoe UI"])
+        font.setPointSize(12)
+
+        # Font size
+        layout_font_size = QHBoxLayout(self.scroll_area_widget)
+        self.label_font_size = QLabel("Font size -> ", self.scroll_area_widget)
+        self.label_font_size.setMinimumSize(QSize(92, 16))
+        self.label_font_size.setFont(font)
+        layout_font_size.addWidget(self.label_font_size)
+
+        self.spinbox_font_size = SpinBox(self.scroll_area_widget)
+        self.spinbox_font_size.setMinimum(5)
+        self.spinbox_font_size.setMaximum(12)
+        layout_font_size.addWidget(self.spinbox_font_size)
+
+        # Font color
+        layout_font_color = QHBoxLayout(self.scroll_area_widget)
+        self.label_font_color = QLabel("Font color -> ", self.scroll_area_widget)
+        self.label_font_color.setMinimumSize(QSize(91, 16))
+        self.label_font_color.setFont(font)
+        layout_font_color.addWidget(self.label_font_color)
+
+        self.combobox_font_color = ComboBox(self.scroll_area_widget)
+        self.combobox_font_color.addItems(["black", "blue", "yellow", "gray"])
+        layout_font_color.addWidget(self.combobox_font_color)
+
+        # Add to layout
+        self.local_add_layout(layout_font_size)
+        self.local_add_layout(layout_font_color)
 
 
 class GraphSettings(DefaultSettings):
@@ -273,14 +332,18 @@ class GraphSettings(DefaultSettings):
         super().save()
         config = self.settings_dict["graph"]
         font_color = self.combobox_font_color.text()
-        font_size = self.spinbox_font_size.text()
+        font_size = self.spinbox_font_size.value()
         font_family = self.combobox_font_family.text()
         edge = self.combobox_edge.text()
         config["font_color"] = font_color
-        config["font_size"] = int(font_size)
+        config["font_size"] = font_size
         config["font_family"] = font_family
         config["edge"] = edge
         self.saved.emit(self.settings_dict)
+
+    def open(self):
+        super().open()
+        self.__config()
 
     def __init_local_setting(self):
         font = QFont()
