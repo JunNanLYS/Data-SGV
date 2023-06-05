@@ -1,12 +1,12 @@
 from typing import Optional, Any, Union
 
 import PySide6
-from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemGroup, QGraphicsSimpleTextItem, \
-    QGraphicsItemAnimation
-from PySide6.QtCore import QRect, QPointF, QTimeLine
-from PySide6.QtGui import QColor, QBrush
+from PySide6.QtCore import QRect, QPointF, QTimeLine, Qt
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsItemAnimation
+
+from src.tool import stop_time
 from src.widgets.line_item import Line
-from src.tool import stop_time, JsonSettingTool
 from src.widgets.node_item import TextNodeItem
 
 
@@ -20,14 +20,35 @@ class TreeNode(TextNodeItem):
         self.l_line: Optional[Line] = None  # 连接左节点的线条
         self.r_line: Optional[Line] = None  # 连接右节点的线条
         self.p_line: Optional[Line] = None  # 连接父节点的线条
+        self.set_node_pen(Qt.NoPen)
 
         self.val = val  # 节点值
 
     def cur_depth(self, root) -> int:
-        """查找当前节点在树的第几层"""
+        """Searches for the level of the tree in which the current node is located"""
         if root is None:
             return 0
         return 1 + self.cur_depth(root.parent)
+
+    def disconnect(self, node):
+        """Disconnect node from self"""
+        if node is self.left:
+            self.left = None
+            self.l_line = None
+        elif node is self.right:
+            self.right = None
+            self.r_line = None
+        else:
+            self.parent = None
+            self.p_line = None
+
+    def delete_data(self):
+        self.left = None
+        self.right = None
+        self.parent = None
+        self.l_line = None
+        self.r_line = None
+        self.p_line = None
 
     def itemChange(self, change: PySide6.QtWidgets.QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change is self.GraphicsItemChange.ItemVisibleHasChanged:
