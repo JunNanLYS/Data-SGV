@@ -486,7 +486,7 @@ class GraphView(MyGraphicsView):
                 if isinstance(self.pre_item, GraphNode):
                     self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
                 self.edgeInfo.emit(1, event_item.start_item.name, event_item.end_item.name,
-                                   event_item.weight, event_item.CLASS_NAME)
+                                   event_item.weight.text(), event_item.CLASS_NAME)
                 self.pre_item = event_item
             # create new node
             elif event_item is None:
@@ -565,14 +565,15 @@ class GraphView(MyGraphicsView):
                 edges = node.edges
                 for edge in edges:
                     # directed edge
-                    if isinstance(edge, ArrowLine) and edge.start_item is node and edge.end_item not in visited:
-                        self.animation_edge_start(edge, True)
-                        edge.traversal()
-                        self.log.emit(f"traversal: {node.name} -> {edge.end_item.name}")
-                        temp.append(edge.end_item)
-                        edge.end_item.switch_mode(NodeModeEnum.SELECTED)
-                        edge.end_item.select_animation()
-                        visited.add(edge.end_item)
+                    if isinstance(edge, ArrowLine):
+                        if edge.start_item is node and edge.end_item not in visited:
+                            self.animation_edge_start(edge, True)
+                            edge.traversal()
+                            self.log.emit(f"traversal: {node.name} -> {edge.end_item.name}")
+                            temp.append(edge.end_item)
+                            edge.end_item.switch_mode(NodeModeEnum.SELECTED)
+                            edge.end_item.select_animation()
+                            visited.add(edge.end_item)
                     # undirected edge
                     else:
                         if edge.start_item is node and edge.end_item not in visited:

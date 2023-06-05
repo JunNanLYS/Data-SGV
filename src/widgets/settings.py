@@ -34,7 +34,7 @@ class UiSetting(DefaultWidget):
 
 
 class DefaultSettings(UiSetting):
-    saved = Signal()  # 保存信号
+    saved = Signal(dict)  # 保存信号
     opened = Signal()  # 打开信号
     closed = Signal()  # 关闭信号
 
@@ -53,6 +53,21 @@ class DefaultSettings(UiSetting):
         self.scroll_area_widget = QWidget(self.scroll_area)
         self.scroll_area.setWidget(self.scroll_area_widget)
         self.layout_main = QVBoxLayout(self.scroll_area_widget)
+
+        # init setting config
+        self.settings_dict = {
+            "global": {
+                "version": 0.1,
+                "animation_speed": 1.0
+            },
+            "tree": {},
+            "graph": {
+                "font_size": 8,
+                "font_color": "black",
+                "font_family": "SimSum",
+                "edge": "ArrowLineWithWeight"
+            }
+        }
 
         # init widget
         self.__init_global_setting()
@@ -140,30 +155,22 @@ class DefaultSettings(UiSetting):
 
     def save(self):
         """save to json file"""
-        j_file = PathTool.get_setting_json()
-        setting = j_file['global']
-        node_color = self.combobox_node_color.text()
-        animation_speed = float(self.label_animation_speed.text().split()[-1])
-        setting['node_color'] = node_color
-        setting['animation_speed'] = animation_speed
-        JsonSettingTool.save_json(j_file)  # dump to json
-        self.saved.emit()
+        animation_speed = self.label_animation_speed.text().split(": ")[1]
+        self.settings_dict["animation_speed"] = animation_speed
 
     @Slot(int, int)
     def parent_changed(self, width, height):
-        self.resize(width // 4, height)
+        self.resize(width // 4 + 30, height)
 
     def __config(self):
         # read
-        j_file = PathTool.get_setting_json()  # 读取Json配置文件
-        setting = j_file["global"]
-        node_color = setting['node_color']
-        animation_speed = setting['animation_speed']
+        global_config = self.settings_dict["global"]
+        animation_speed = global_config["animation_speed"]
+        version = global_config["version"]
 
         # load
-        self.combobox_node_color.setText(node_color)
         self.label_animation_speed.setText(f"Animation speed: {animation_speed}")
-
+        self.label_version.setText(f"Version: {version}")
         return
 
     def __init_local_setting(self):
@@ -210,11 +217,9 @@ class DefaultSettings(UiSetting):
         self.label_global.setFont(font_title)
         self.label_global.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 
-        self.label_node_color = QLabel(self.scroll_area_widget)
-        self.label_node_color.setText("Node color -> ")
-        self.label_node_color.setMinimumSize(QSize(82, 21))
-        self.label_node_color.setMaximumSize(QSize(16777215, 30))
-        self.label_node_color.setFont(font)
+        self.label_version = QLabel(self.scroll_area_widget)
+        self.label_version.setText("Version: 0.1")
+        self.label_version.setFont(font)
 
         self.label_animation_speed = QLabel(self.scroll_area_widget)
         self.label_animation_speed.setText("Animation speed: 1.0")
@@ -228,19 +233,12 @@ class DefaultSettings(UiSetting):
 
         # layout init
         self.layout_global = QVBoxLayout()
-        self.node_color_layout = QHBoxLayout()
         self.layout_animation_speed = QVBoxLayout()
-
-        # combobox init
-        self.combobox_node_color = ComboBox(self.scroll_area_widget)
-        self.combobox_node_color.addItems(["blue", "black", "yellow"])
 
         # add to layout
         self.layout_main.addWidget(self.label_global)
 
-        self.node_color_layout.addWidget(self.label_node_color)
-        self.node_color_layout.addWidget(self.combobox_node_color)
-        self.layout_global.addLayout(self.node_color_layout)
+        self.layout_global.addWidget(self.label_version)
 
         self.layout_animation_speed.addWidget(self.label_animation_speed)
         self.layout_animation_speed.addWidget(self.slider_animation_speed)
@@ -267,24 +265,22 @@ class TreeSettings(DefaultSettings):
 class GraphSettings(DefaultSettings):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.label_font_color: QLabel  # 节点字体颜色 | 标签
-        self.combobox_font_color: ComboBox  # 节点字体颜色 | 多选框
-        self.label_font_size: QLabel  # 节点字体大小 | 标签
-        self.spinbox_font_size: SpinBox  # 节点字体大小 | 微调框
 
         self.__init_local_setting()  # 载入Local所需的控件
         self.__config()  # 根据配置文件设置
 
     def save(self):
         super().save()
-        j_file = PathTool.get_setting_json()
-        setting = j_file['graph']
-        font_size = self.spinbox_font_size.value()
+        config = self.settings_dict["graph"]
         font_color = self.combobox_font_color.text()
-        setting['font_size'] = font_size
-        setting['font_color'] = font_color
-        JsonSettingTool.save_json(j_file)  # sve json
-        self.saved.emit()
+        font_size = self.spinbox_font_size.text()
+        font_family = self.combobox_font_family.text()
+        edge = self.combobox_edge.text()
+        config["font_color"] = font_color
+        config["font_size"] = int(font_size)
+        config["font_family"] = font_family
+        config["edge"] = edge
+        self.saved.emit(self.settings_dict)
 
     def __init_local_setting(self):
         font = QFont()
@@ -314,20 +310,45 @@ class GraphSettings(DefaultSettings):
         self.combobox_font_color.addItems(["black", "blue", "yellow", "gray"])
         layout_font_color.addWidget(self.combobox_font_color)
 
+        # Font family
+        layout_font_family = QHBoxLayout(self.scroll_area_widget)
+        label_font_family = QLabel("Font family -> ", self.scroll_area_widget)
+        label_font_family.setFont(font)
+        layout_font_family.addWidget(label_font_family)
+
+        self.combobox_font_family = ComboBox(self.scroll_area_widget)
+        self.combobox_font_family.addItems(["Segoe", "SimSum"])
+        layout_font_family.addWidget(self.combobox_font_family)
+
+        # Edge
+        layout_edge = QHBoxLayout(self.scroll_area_widget)
+        label_edge = QLabel("Edge -> ", self.scroll_area_widget)
+        label_edge.setFont(font)
+        layout_edge.addWidget(label_edge)
+
+        self.combobox_edge = ComboBox(self.scroll_area_widget)
+        self.combobox_edge.addItems(["Line", "LineWithWeight", "ArrowLine", "ArrowLineWithWeight"])
+        layout_edge.addWidget(self.combobox_edge)
+
         # add to local layout
         self.local_add_layout(layout_font_size)
         self.local_add_layout(layout_font_color)
+        self.local_add_layout(layout_font_family)
+        self.local_add_layout(layout_edge)
 
     def __config(self):
         # read
-        j_file = PathTool.get_setting_json()  # 读取Json配置文件
-        setting = j_file["graph"]
+        setting = self.settings_dict["graph"]
         font_size = setting['font_size']
         font_color = setting['font_color']
+        font_family = setting["font_family"]
+        edge = setting["edge"]
 
         # load
         self.spinbox_font_size.setValue(font_size)
-        self.combobox_font_color.setText(font_color)
+        self.combobox_font_color.setCurrentText(font_color)
+        self.combobox_font_family.setCurrentText(font_family)
+        self.combobox_edge.setCurrentText(edge)
         return
 
 
