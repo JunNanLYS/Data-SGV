@@ -116,6 +116,10 @@ class TextNodeItem(NodeItem):
 
     def set_text_font(self, font: QFont) -> None:
         self.text.setFont(font)
+        r = self.r
+        w = self.text.boundingRect().center().x()
+        h = self.text.boundingRect().center().y()
+        self.text.setPos(r - w, r - h)
 
     def set_text_brush(self, color: Union[QColor, str]) -> None:
         self.text.setBrush(QBrush(color))
