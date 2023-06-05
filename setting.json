@@ -1,0 +1,17 @@
+{
+  "global": {
+    "animation_speed": 1.0,
+    "node_color": "blue",
+    "log_animation_speed": 0.5
+  },
+  "tree": {},
+  "heap": {},
+  "stack": {},
+  "hash": {},
+  "linked_list": {},
+  "graph": {
+    "font_color": "black",
+    "font_size": 8,
+    "font_family": "SimSum"
+  }
+}

@@ -1,0 +1,9 @@
+{
+    "python.analysis.extraPaths":[
+
+    ],
+    "python.terminal.executeInFileDir": true,
+    "python.envFile": "${workspaceFolder}/dev.env",
+    "terminal.explorerKind": "external",
+    "terminal.integrated.cwd": "\"${fileDirname}\"",
+}
