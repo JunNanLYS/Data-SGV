@@ -114,6 +114,7 @@ class DataStructureWindow(DataStructureWidget):
 
     def __init_graphics_widget(self):
         # init layout
+        self.layout_title = QHBoxLayout()
         self.layout_graphics = QHBoxLayout()
         self.layout_graphics_tools = QVBoxLayout()
 
@@ -123,6 +124,7 @@ class DataStructureWindow(DataStructureWidget):
         # add to layout
         self.layout_graphics.addWidget(self.graphics_view)
         self.layout_graphics.addLayout(self.layout_graphics_tools)
+        self.layout_main.addLayout(self.layout_title)
         self.layout_main.addLayout(self.layout_graphics)
 
     def __init_graphics_tool_widget(self):
@@ -132,12 +134,111 @@ class DataStructureWindow(DataStructureWidget):
 class TreeDataStructure(DataStructureWindow):
     def __init__(self, parent=None):
         super().__init__(parent, TreeSettings, BinaryTreeView)
+        self.graphics_view: BinaryTreeView
+
+        self.__init_title()
+        self.__init_graphics_tool_widget()
+
+        # signal connect slot
+        self.line_edit_add.editingFinished.connect(self.button_add.clicked)
+        self.line_edit_delete.editingFinished.connect(self.button_delete.clicked)
+        self.line_edit_search.editingFinished.connect(self.button_search.clicked)
+
+        self.button_add.clicked.connect(self._add_node)
+        self.button_delete.clicked.connect(self._delete_node)
+        self.button_search.clicked.connect(self._search_node)
+
+        self.graphics_view.diaLog.connect(self.show_dialog)
+        self.graphics_view.log.connect(self.log_widget.add)
+
+        self.setting_widget.saved.connect(self.graphics_view.config)
+
+    def _add_node(self):
+        self.graphics_view: BinaryTreeView
+
+        self.graphics_view.redraw()
+        val = self.line_edit_add.text()
+        val = val.split(',')
+        self.line_edit_add.clear()
+        self.graphics_view.add_node(val)
+
+    def _delete_node(self):
+        self.graphics_view: BinaryTreeView
+
+        self.graphics_view.redraw()
+        val = self.line_edit_delete.text()
+        self.line_edit_delete.clear()
+        self.graphics_view.delete_node(val)
+
+    def _search_node(self):
+        self.graphics_view: BinaryTreeView
+
+        self.graphics_view.redraw()
+        val = self.line_edit_search.text()
+        self.line_edit_search.clear()
+        self.graphics_view.search_node(val)
 
     def __init_menu_widget(self):
         pass
 
+    def __init_title(self):
+        label = QLabel("Binary Search Tree", self)
+        font = QFont("Segoe", 30)
+        font.setBold(True)
+        label.setFont(font)
+        self.layout_title.addWidget(label)
+
     def __init_graphics_tool_widget(self):
-        pass
+        # init font
+        font = QFont("Segoe", 15)
+        font_title = QFont("Segoe", 20)
+        font_title.setBold(True)
+
+        # init widget
+        label_add = QLabel("Add Node", self)
+        label_add.setFont(font)
+        self.line_edit_add = LineEdit(self)
+        self.line_edit_add.setPlaceholderText("Val")
+        self.button_add = PushButton("Add", self)
+        layout_add = self.layout_group(QHBoxLayout, [label_add, self.line_edit_add, self.button_add])
+
+        label_delete = QLabel("Delete Node", self)
+        label_delete.setFont(font)
+        self.line_edit_delete = LineEdit(self)
+        self.line_edit_delete.setPlaceholderText("Val")
+        self.button_delete = PushButton("Delete", self)
+        layout_delete = self.layout_group(QHBoxLayout, [label_delete, self.line_edit_delete, self.button_delete])
+
+        label_search = QLabel("Search Node", self)
+        label_search.setFont(font)
+        self.line_edit_search = LineEdit(self)
+        self.line_edit_search.setPlaceholderText("Val")
+        self.button_search = PushButton("Search", self)
+        layout_search = self.layout_group(QHBoxLayout, [label_search, self.line_edit_search, self.button_search])
+
+        self.button_preorder = PushButton("Preorder", self)
+
+        self.button_inorder = PushButton("Inorder", self)
+
+        self.button_postorder = PushButton("Postorder", self)
+
+        self.button_bfs = PushButton("BFS", self)
+
+        label_log = QLabel("Log", self)
+        label_log.setFont(font_title)
+        label_log.setAlignment(Qt.AlignCenter)
+        self.log_widget = LogWidget(self)
+
+        # add to layout
+        self.add_to_graphics_tool_layout(layout_add)
+        self.add_to_graphics_tool_layout(layout_delete)
+        self.add_to_graphics_tool_layout(layout_search)
+        self.add_to_graphics_tool_layout(self.button_preorder)
+        self.add_to_graphics_tool_layout(self.button_inorder)
+        self.add_to_graphics_tool_layout(self.button_postorder)
+        self.add_to_graphics_tool_layout(self.button_bfs)
+        self.add_to_graphics_tool_layout(label_log)
+        self.add_to_graphics_tool_layout(self.log_widget)
 
 
 class GraphDataStructure(DataStructureWindow):
@@ -146,6 +247,7 @@ class GraphDataStructure(DataStructureWindow):
         self.graphics_view: GraphView
         # init widget
         self.__init_graphics_tool_widget()
+        self.__init_title()
         self.switch_model(0)
 
         # signal connect slot
@@ -170,6 +272,8 @@ class GraphDataStructure(DataStructureWindow):
 
         self.button_dijkstra.clicked.connect(self.log_widget.clear)
         self.button_dijkstra.clicked.connect(self.graphics_view.dijkstra)
+
+        self.setting_widget.saved.connect(self.graphics_view.config)
 
     def switch_model(self, model: int) -> None:
         """
@@ -212,6 +316,15 @@ class GraphDataStructure(DataStructureWindow):
 
     def __init_menu_widget(self):
         pass
+
+    def __init_title(self):
+        font = QFont()
+        font.setPointSize(30)
+        font.setFamily("Segoe")
+        font.setBold(True)
+        title = QLabel(" Graph", self)
+        title.setFont(font)
+        self.layout_title.addWidget(title)
 
     def __init_graphics_tool_widget(self):
         def set_label_size(lab: QLabel):
@@ -321,6 +434,6 @@ if __name__ == '__main__':
     from PySide6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    window = GraphDataStructure()
+    window = TreeDataStructure()
     window.show()
     sys.exit(app.exec())
