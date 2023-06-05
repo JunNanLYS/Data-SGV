@@ -4,19 +4,20 @@ from datetime import datetime
 from typing import Tuple, Optional, Union
 
 import PySide6
-from PySide6.QtCore import QPoint, Property, QLineF, QPropertyAnimation, Qt, QPointF, Signal
+from PySide6.QtCore import QPoint, Property, QPropertyAnimation, Qt, QPointF, Signal
 from PySide6.QtGui import QCursor, QPainter, QTransform, QColor, QFont
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsItem
 
 from src.data_structure.binary_tree import TreeNode
 from src.data_structure.graph import GraphNode
-from src.tool import JsonSettingTool, stop_time
+from src.tool import stop_time
 from src.widgets.line_item import GraphicsLineItem, Line, LineEnum, ArrowLine
 from src.widgets.node_item import NodeModeEnum
 
 
 class MyGraphicsView(QGraphicsView):
     log = Signal(str)
+    diaLog = Signal(str, str)
 
     def __init__(self, parent=None):
         super(MyGraphicsView, self).__init__(parent)
@@ -24,6 +25,8 @@ class MyGraphicsView(QGraphicsView):
         self.scene = QGraphicsScene(self.x(), self.y(), self.width(), self.height())  # 内置场景
         self.viewport().setProperty("cursor", QCursor(Qt.CrossCursor))  # 设置光标为十字型  ( + )
         self.setScene(self.scene)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         # init
         self.mouse: Optional[Qt.MouseButton] = Qt.MouseButton.NoButton  # 记录鼠标事件
@@ -86,49 +89,71 @@ class MyGraphicsView(QGraphicsView):
 
 # 二叉树
 class BinaryTreeView(MyGraphicsView):
-    root_y = 50
-    animation_line: Optional[Line] = None
-
     def __init__(self, parent=None):
         super().__init__(parent)
         # init config
         self.animation_time = 1000  # millisecond
-        self.node_color = "default"  # node color
-        # -----------------------------------------------------
+        self.font_size = 8
+        self.font_color = "black"
 
+        # init
         self.nodes = set()  # 节点集
 
+        self.root_y = 50
         self.y_spacing = TreeNode("").boundingRect().center().y() + 50  # y间距
         self.x_spacing = TreeNode("").boundingRect().center().x()  # x间距
 
         self._root: Optional[TreeNode] = None
 
-    def add_node(self, val: str) -> None:
+        # animation
+        self.animation_line: Optional[Line] = None
+
+    def add_node(self, vals: Union[str, list]) -> None:
         """添加新节点"""
-        # 已经存在相同的值了，不允许存在相同的值
-        if val in self.nodes:
-            print(f"add_node: {val} in nodes")
-            # 这里最好加一个弹窗,或者消息窗
-            return
-        # val不为数字
-        if not val.isdigit():
-            print(f"add_node: {val} is not digit")
-            # 消息窗(待加入)
-            return
-        self.create_node(val)
-        pass
+
+        def add(value):
+            # 已经存在相同的值了，不允许存在相同的值
+            value = value.replace(" ", "")  # 清除空格
+            if value in self.nodes:
+                print(f"add_node: {value} in nodes")
+                self.diaLog.emit("Tip", "The same value exists")
+                return
+            # val不为数字
+            if not value.isdigit():
+                print(f"add_node: {value} is not digit")
+                self.diaLog.emit("Error", f"{value} is not digit")
+                return
+            self.create_node(value)
+
+        if isinstance(vals, list):
+            for val in vals:
+                add(val)
+        else:
+            add(vals)
 
     def animation_line_start(self, line: Optional[Line]):
         self.animation_line = line
 
-        animation_speed: float = JsonSettingTool.animation_speed()  # 动画速度
-        ms = int(animation_speed * 1000)  # 转毫秒
         anim = QPropertyAnimation(self, b'connect_line')
         anim.setStartValue(self.animation_line.line_start)
         anim.setEndValue(self.animation_line.line_end)
-        anim.setDuration(ms)
+        anim.setDuration(self.animation_time)
         anim.start()
-        stop_time(millisecond=ms)
+        stop_time(millisecond=self.animation_time)
+
+    def config(self, config_dict: dict) -> None:
+        global_config = config_dict['global']
+        local_config = config_dict['tree']
+        animation_speed = global_config['animation_speed']
+        font_size = local_config['font_size']
+        font_color = local_config['font_color']
+
+        self.animation_time = animation_speed * 1000
+        self.font_size = font_size
+        self.font_color = font_color
+
+        self.redraw()
+
 
     @Property(QPointF)
     def connect_line(self):
@@ -137,12 +162,11 @@ class BinaryTreeView(MyGraphicsView):
     @connect_line.setter
     def connect_line(self, p: QPointF):
         self.animation_line.line_end = p
-        line = QLineF(self.animation_line.line_start, self.animation_line.line_end)
-        self.animation_line.setLine(line)
 
     def create_node(self, val: str):
         """创建节点"""
         # 没有根节点，创建一个根节点
+        self.log.emit(f"create new node {val}")
         if not self.nodes:
             node = self.new_node(val)
             node.setPos(QPointF(self.root_x, self.root_y))
@@ -172,8 +196,11 @@ class BinaryTreeView(MyGraphicsView):
         return new node
         """
         res_node = TreeNode(val)
-        if self.node_color != "default":
-            res_node.set_node_brush(self.node_color)
+        font = QFont()
+        font.setPointSize(self.font_size)
+        res_node.set_text_font(font)
+        res_node.set_text_brush(self.font_color)
+
         return res_node
 
     def connect_node(self, parent: TreeNode, child: TreeNode, direction: str) -> None:
@@ -211,7 +238,11 @@ class BinaryTreeView(MyGraphicsView):
         del_left = del_node.left
         del_right = del_node.right
         del_parent = del_node.parent
-        direction = 'l' if del_parent.left is del_node else 'r'
+        if del_parent and del_parent.left and del_parent.left is del_node:
+            direction = 'l'
+        elif del_parent and del_parent.right and del_parent.right is del_node:
+            direction = 'r'
+
         if del_node is self.root:
             if del_right:
                 self._root = del_right
@@ -220,9 +251,17 @@ class BinaryTreeView(MyGraphicsView):
 
         # 删除节点以及线条
         del_item = [del_node, del_node.l_line, del_node.r_line, del_node.p_line]
+        self.nodes.remove(val)
         for item in del_item:
             if item:
                 self.scene.removeItem(item)
+        del_node.delete_data()
+        if del_parent:
+            del_parent.disconnect(del_node)
+        if del_left:
+            del_left.disconnect(del_node)
+        if del_right:
+            del_right.disconnect(del_node)
 
         if del_right:
             del_right.move_animation(self.animation_time, del_pos)  # 右节点移动到删除节点的位置
@@ -231,28 +270,47 @@ class BinaryTreeView(MyGraphicsView):
                 while node.left is not None:
                     node = node.left
                 del_left.parent = node
-                del_left.p_line.start_item = node
                 node.left = del_left
-                node.l_line = del_left.p_line
+                self.connect_node(node, del_left, 'l')
             if del_parent:
+                if direction == 'l':
+                    del_parent.left = del_right
+                else:
+                    del_parent.right = del_right
                 del_right.parent = del_parent
-                del_right.p_line.start_item = del_parent
+                self.connect_node(del_parent, del_right, direction)
 
         elif del_left:
             del_left.move_animation(self.animation_time, del_pos)
+            if del_parent:
+                if direction == 'l':
+                    del_parent.left = del_left
+                else:
+                    del_parent.right = del_left
+                del_left.parent = del_parent
+                self.connect_node(del_parent, del_left, direction)
+        self.redraw_tree()
 
-    def recover(self):
-        """二叉树还原至初始状态"""
-        pass
+    def redraw(self):
+        root = self.root
+        if root is None:
+            return
+        q = [root]
+        font = QFont()
+        font.setPointSize(self.font_size)
 
-    @property
-    def root_x(self):
-        return self.scene.width() / 2
-
-    @property
-    def root(self) -> Optional[TreeNode]:
-        pos = QPointF(self.root_x, self.root_y)
-        return self.scene.itemAt(pos, QTransform())
+        while q:
+            temp = []
+            for node in q:
+                node.switch_mode(NodeModeEnum.DEFAULT)
+                node.set_text_brush(self.font_color)
+                node.set_text_font(font)
+                if node.left:
+                    temp.append(node.left)
+                if node.right:
+                    temp.append(node.right)
+            q = temp
+        stop_time(millisecond=100)
 
     def redraw_tree(self):
         """重绘二叉树"""
@@ -266,7 +324,9 @@ class BinaryTreeView(MyGraphicsView):
         if root is None:
             return
         print("redraw_tree: 重绘二叉树")
-        root.setPos(self.root_x, self.root_y)
+        print(f"root: {root.cur_depth(root)}")
+        print(f"_root: {self._root.cur_depth(self._root)}")
+        root.setPos(QPointF(self.root_x, self.root_y))
         root.itemChange(root.GraphicsItemChange.ItemVisibleHasChanged, True)
         q = []
         if root.left:
@@ -295,13 +355,18 @@ class BinaryTreeView(MyGraphicsView):
         """查找节点插入位置，返回父节点以及插入方向"""
 
         def dfs(node: TreeNode):
+            node.switch_mode(NodeModeEnum.PATH)
             if int(val) < int(node.val):
                 if node.left is None:
+                    self.log.emit("insert")
                     return node, 'l'
+                self.log.emit("search left")
                 return dfs(node.left)
             elif int(val) > int(node.val):
                 if node.right is None:
+                    self.log.emit("insert")
                     return node, 'r'
+                self.log.emit("search right")
                 return dfs(node.right)
             else:
                 raise TypeError(f"search_insert_node: {val} in nodes")
@@ -326,14 +391,14 @@ class BinaryTreeView(MyGraphicsView):
 
         def dfs(node: TreeNode) -> TreeNode:
             if int(node.val) == int(target):
-                node.set_color('red')
+                node.switch_mode(NodeModeEnum.SELECTED)
                 return node
             elif int(node.val) < int(target):
-                node.set_color('green')
+                node.switch_mode(NodeModeEnum.PATH)
                 self.animation_line_start(node.r_line)
                 return dfs(node.right)
             else:
-                node.set_color('green')
+                node.switch_mode(NodeModeEnum.PATH)
                 self.animation_line_start(node.l_line)
                 return dfs(node.left)
 
@@ -346,6 +411,15 @@ class BinaryTreeView(MyGraphicsView):
         else:
             print("没有找到根节点")
             raise AttributeError("The root node was not found")
+
+    @property
+    def root_x(self):
+        return self.scene.width() / 2
+
+    @property
+    def root(self) -> Optional[TreeNode]:
+        pos = QPointF(self.root_x, self.root_y)
+        return self.scene.itemAt(pos, QTransform())
 
 
 # 堆
@@ -589,9 +663,9 @@ class GraphView(MyGraphicsView):
                             edge.traversal()
                             self.log.emit(f"traversal: {node.name} -> {edge.start_item.name}")
                             temp.append(edge.start_item)
-                            edge.end_item.switch_mode(NodeModeEnum.SELECTED)
-                            edge.end_item.select_animation()
-                            visited.add(edge.end_item)
+                            edge.start_item.switch_mode(NodeModeEnum.SELECTED)
+                            edge.start_item.select_animation()
+                            visited.add(edge.start_item)
             queue = temp
 
     def dijkstra(self):
@@ -637,10 +711,36 @@ class GraphView(MyGraphicsView):
 
     def redraw(self):
         """redraw all the items in the scene"""
+        temp = self.pre_item
         for node in self.nodes.values():
+            font = QFont()
+            font.setFamily(self.font_family)
+            font.setPointSize(self.font_size)
+            node.set_text_font(font)
+            node.set_text_brush(self.font_color)
             node.set_node_brush(node.DEFAULT_COLOR)
             for edge in node.edges:
                 edge.default()
+                self.pre_item = edge
+                self.change_edge_type(self.edge_type)
+        self.pre_item = temp
+
+    def config(self, config_dict: dict) -> None:
+        global_config = config_dict["global"]
+        graph_config = config_dict["graph"]
+        font_color = graph_config["font_color"]
+        font_size = graph_config["font_size"]
+        font_family = graph_config["font_family"]
+        edge_type = graph_config["edge"]
+        animation_speed = global_config["animation_speed"]
+
+        self.animation_time = animation_speed * 1000
+        self.font_color = font_color
+        self.font_size = font_size
+        self.font_family = font_family
+        self.edge_type = edge_type
+
+        self.redraw()
 
 
 class ItemGroup:
