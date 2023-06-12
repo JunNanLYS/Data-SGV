@@ -2,13 +2,12 @@ from typing import Optional
 
 from PySide6.QtCore import QSize, Signal, Qt, Slot, QPropertyAnimation, Property
 from PySide6.QtGui import QFont, QColor, QBrush
-
 from PySide6.QtWidgets import QApplication, QWidget, QLayout, QLabel, QHBoxLayout, QVBoxLayout, QSpacerItem, \
     QSizePolicy, QGraphicsDropShadowEffect
-from src.tool import PathTool, JsonSettingTool, stop_time
-
 from qfluentwidgets import SpinBox, ComboBox, SmoothScrollArea, Slider, PushButton
-from windows import DefaultWidget
+
+from src.tool import stop_time
+from src.widgets.windows import DefaultWidget
 
 
 class UiSetting(DefaultWidget):
@@ -155,8 +154,8 @@ class DefaultSettings(UiSetting):
 
         # shadow
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setOffset(8, 3)
-        shadow.setColor(Qt.gray)
+        shadow.setOffset(3, 2)
+        shadow.setColor(QColor(128, 128, 128))
         self.setGraphicsEffect(shadow)
 
     def save(self):
