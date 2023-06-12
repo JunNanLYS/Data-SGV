@@ -11,6 +11,8 @@ from qfluentwidgets import PixmapLabel
 class ImageWidget(PixmapLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(PySide6.QtCore.Qt.WA_TranslucentBackground, True)
+        self.setWindowFlags(PySide6.QtCore.Qt.FramelessWindowHint)
         self.leave_hide = True
         self.click = True
         self.default_image = None
