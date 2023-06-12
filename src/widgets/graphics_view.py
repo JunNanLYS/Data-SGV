@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGrap
 
 from src.data_structure.binary_tree import TreeNode
 from src.data_structure.graph import GraphNode
+from src.data_structure.segment_tree import SegmentTreeNode
 from src.tool import stop_time
 from src.widgets.line_item import GraphicsLineItem, Line, LineEnum, ArrowLine
 from src.widgets.node_item import NodeModeEnum
@@ -41,12 +42,14 @@ class MyGraphicsView(QGraphicsView):
         )
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mousePressEvent(event)
         self.mouse = event.button()
-        if event.button() == Qt.MiddleButton:
+        if event.button() is Qt.MiddleButton:
             self.last_pos = self.mapToScene(event.position().toPoint())
             return
 
     def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mouseMoveEvent(event)
         if self.mouse == Qt.MiddleButton:
             dp = self.mapToScene(event.position().toPoint()) - self.last_pos
             sRect = self.sceneRect()
@@ -55,10 +58,8 @@ class MyGraphicsView(QGraphicsView):
             return
 
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mouseReleaseEvent(event)
         self.mouse = Qt.MouseButton.NoButton
-
-    def mouseDoubleClickEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        self.mouseReleaseEvent(event)
 
     def wheelEvent(self, event) -> None:
         zoomInFactor = 1.25  # 放大因子
@@ -431,7 +432,6 @@ class GraphView(MyGraphicsView):
     clickedItem = Signal(int)  # 0 is line, 1 is node
     nodeInfo = Signal(int, str)
     edgeInfo = Signal(int, str, str, str, str)
-    diaLog = Signal(str, str)
 
     def __init__(self):
         super(GraphView, self).__init__()
@@ -742,6 +742,29 @@ class GraphView(MyGraphicsView):
         self.redraw()
 
 
+class SegmentTreeView(MyGraphicsView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.tree = list()
+        self.flags = list()
+        self.cnt = 1
+
+    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mousePressEvent(event)
+        event_pos = event.position().toPoint()
+        event_item = self.itemAt(event_pos)
+        while event_item and event_item.group():
+            event_item = event_item.group()
+
+        if self.mouse is Qt.LeftButton:
+            if isinstance(event_item, SegmentTreeNode):
+                if self.cnt:
+                    event_item.interval.hide()
+                else:
+                    event_item.interval.show()
+                self.cnt ^= 1
+
+
 class ItemGroup:
     def __init__(self):
         self.__items = defaultdict(list)
@@ -816,19 +839,31 @@ if __name__ == '__main__':
     # sys.exit(app.exec())
 
     # ------------图-------------
-    app = QApplication(sys.argv)
-    view = GraphView()
-    ZheJiang = GraphNode('Name1')
-    ShangHai = GraphNode('Name2')
-    view.scene.addItem(ZheJiang)
-    view.scene.addItem(ShangHai)
-    view.nodes['Name1'] = ZheJiang
-    view.nodes['Name2'] = ShangHai
-    ZheJiang.setPos(QPointF(300, 100))
-    ShangHai.setPos(QPointF(400, 100))
+    # app = QApplication(sys.argv)
+    # view = GraphView()
+    # ZheJiang = GraphNode('Name1')
+    # ShangHai = GraphNode('Name2')
+    # view.scene.addItem(ZheJiang)
+    # view.scene.addItem(ShangHai)
+    # view.nodes['Name1'] = ZheJiang
+    # view.nodes['Name2'] = ShangHai
+    # ZheJiang.setPos(QPointF(300, 100))
+    # ShangHai.setPos(QPointF(400, 100))
     # view.connect_node("Name1", "Name2")
     # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
     # view.scene.addItem(line)
 
+    # view.show()
+    # sys.exit(app.exec())
+
+    # ------------线段树-------------
+    app = QApplication(sys.argv)
+
+    view = SegmentTreeView()
+    item = SegmentTreeNode('1', '20', '30')
+    item.setPos(100, 100)
+    view.scene.addItem(item)
+
     view.show()
-    sys.exit(app.exec())
+
+    app.exec()

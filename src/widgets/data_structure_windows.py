@@ -8,8 +8,8 @@ from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox, PushButto
 
 from src.widgets.graphics_view import MyGraphicsView, BinaryTreeView, GraphView
 from src.widgets.settings import DefaultSettings, GraphSettings, TreeSettings
-from windows import RoundedWindow
-from log import LogWidget
+from src.widgets.windows import RoundedWindow
+from src.widgets.log import LogWidget
 
 
 class DataStructureWidget(RoundedWindow):
@@ -434,6 +434,6 @@ if __name__ == '__main__':
     from PySide6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    window = TreeDataStructure()
+    window = GraphDataStructure()
     window.show()
     sys.exit(app.exec())
