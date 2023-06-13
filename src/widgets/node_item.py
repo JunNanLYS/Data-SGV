@@ -114,6 +114,15 @@ class TextNodeItem(NodeItem):
         h = self.text.boundingRect().center().y()
         self.text.setPos(r - w, r - h)
 
+    def set_text(self, text: Union[int, str]):
+        if isinstance(text, int):
+            text = str(text)
+        self.text.setText(text)
+        r = self.r
+        w = self.text.boundingRect().center().x()
+        h = self.text.boundingRect().center().y()
+        self.text.setPos(r - w, r - h)
+
     def set_text_font(self, font: QFont) -> None:
         self.text.setFont(font)
         r = self.r

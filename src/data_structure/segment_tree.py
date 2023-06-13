@@ -1,3 +1,5 @@
+from typing import Union
+
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QGraphicsItemGroup, QGraphicsSimpleTextItem
@@ -7,10 +9,22 @@ from src.widgets.rect_item import ClosedInterval
 
 
 class SegmentTreeNode(QGraphicsItemGroup):
-    def __init__(self, l: str, r: str, s: str, w=40, h=40):
+    def __init__(self, l: Union[str, int], r: Union[str, int], s: Union[str, int], w=40, h=40):
         super().__init__()
+        if isinstance(l, int):
+            l = str(l)
+        if isinstance(r, int):
+            r = str(r)
+        if isinstance(s, int):
+            s = str(s)
+
+        self.l_line = None
+        self.r_line = None
+
         # init item
+        self.setZValue(1)
         self.node = TextNodeItem(s, w=w, h=h)
+        self.node.set_node_pen(Qt.NoPen)
         self.interval = Interval(l, r)
 
         # add to group
@@ -22,17 +36,42 @@ class SegmentTreeNode(QGraphicsItemGroup):
         h = self.node.boundingRect().height()
         self.interval.setPos(pos.x(), pos.y() + h)
 
+    def center(self):
+        pos = self.node.pos()
+        h = self.node.boundingRect().height()
+        self.interval.setPos(pos.x(), pos.y() + h)
+
     @property
     def sum(self) -> int:
         return int(self.node.text.text())
+
+    @sum.setter
+    def sum(self, s: Union[int, str]):
+        self.node.set_text(s)
 
     @property
     def left_interval(self) -> int:
         return int(self.interval.left_text.text())
 
+    @left_interval.setter
+    def left_interval(self, text: Union[int, str]):
+        if isinstance(text, int):
+            text = str(text)
+        self.interval.left_text.setText(text)
+        self.interval.check_position()
+        self.center()
+
     @property
     def right_interval(self) -> int:
         return int(self.interval.right_text.text())
+
+    @right_interval.setter
+    def right_interval(self, text: Union[int, str]):
+        if isinstance(text, int):
+            text = str(text)
+        self.interval.right_text.setText(text)
+        self.interval.check_position()
+        self.center()
 
 
 class Interval(QGraphicsItemGroup):
@@ -57,15 +96,15 @@ class Interval(QGraphicsItemGroup):
         self.addToGroup(self.comma_text)
 
         # move item position
-        self.__check_position()
+        self.check_position()
 
     def set_left(self, text: str) -> None:
         self.left_text.setText(text)
-        self.__check_position()
+        self.check_position()
 
     def set_right(self, text: str) -> None:
         self.right_text.setText(text)
-        self.__check_position()
+        self.check_position()
 
     def set_text_pen(self, pen):
         self.left_text.setPen(pen)
@@ -77,7 +116,7 @@ class Interval(QGraphicsItemGroup):
         self.right_text.setFont(font)
         self.comma_text.setFont(font)
 
-    def __check_position(self):
+    def check_position(self):
         w = self.left_interval.boundingRect().width()
         h = self.left_interval.boundingRect().height()
         left_text_w = self.left_text.boundingRect().width()

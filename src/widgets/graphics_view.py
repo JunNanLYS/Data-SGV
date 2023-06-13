@@ -745,9 +745,85 @@ class GraphView(MyGraphicsView):
 class SegmentTreeView(MyGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.tree = list()
-        self.flags = list()
+        self.n = 0
+        self.arr = []
+        self.tree: list[SegmentTreeNode] = []
+        self.flags = []
         self.cnt = 1
+
+    def connect_node(self, p: SegmentTreeNode, c: SegmentTreeNode):
+        new_line = GraphicsLineItem.new_line(p, c, LineEnum.LINE)
+        self.scene.addItem(new_line)
+        return new_line
+
+    def build_tree(self):
+        root = self.tree[1]
+        root.setPos(self.scene.width() / 2, 100)
+        self.scene.addItem(root)
+        cur_depth = 0
+        max_depth = 0
+        idx = 1
+        while idx < len(self.tree):
+            max_depth += 1
+            idx *= 2
+
+        q = [(self.tree[2], root, 'l', 2), (self.tree[3], root, 'r', 3)]
+        while q:
+            temp = []
+            for node, parent, direction, p in q:
+                if node.left_interval == -1 or node.right_interval == -1:
+                    continue
+                if p * 2 < len(self.tree):
+                    nex = self.tree[p * 2]
+                    temp.append((nex, node, 'l', p * 2))
+
+                if p * 2 + 1 < len(self.tree):
+                    nex = self.tree[p * 2 + 1]
+                    temp.append((nex, node, 'r', p * 2 + 1))
+
+                new_pos = self.calculated_pos(parent, direction, cur_depth, max_depth - 1)
+                self.scene.addItem(node)
+                node.setPos(new_pos)
+                new_line = self.connect_node(parent, node)
+                if direction == 'l':
+                    parent.l_line = new_line
+                else:
+                    parent.r_line = new_line
+
+            q = temp
+            cur_depth += 1
+
+    def calculated_pos(self, parent: SegmentTreeNode, directions, cur_depth, max_depth) -> QPointF:
+        """计算节点放置位置"""
+        # 计算间隔比例
+        space_between = pow(2, max_depth - cur_depth) - 2
+        # x坐标 = 父节点x坐标 +/- (间距比例 * x间隔) +/- 节点的半径
+        # y坐标 = 父节点的y坐标 +/- 固定的行距
+        r = parent.node.boundingRect().center().x()
+        x_spacing = parent.node.boundingRect().center().x()
+        y_spacing = parent.node.boundingRect().center().y() + 50
+        x_parent = parent.pos().x()
+        y_parent = parent.pos().y()
+        x = x_parent - (space_between * x_spacing) - r if directions == 'l' else x_parent + (
+                space_between * x_spacing) + r
+        y = y_parent + y_spacing
+
+        pos = QPointF(x, y)
+        return pos
+
+    def make(self, arr: list) -> None:
+        self.n = len(arr)
+        self.arr = arr
+        self.tree = [SegmentTreeNode(-1, -1, 0) for _ in range(self.n * 4 - 5)]
+        self.flags = [0] * (self.n * 4 - 5)
+        self.__build(0, self.n - 1, 1)
+        self.build_tree()
+
+    def get_sum(self, l, r) -> int:
+        return self.__get_sum(l, r, 0, self.n - 1, 1)
+
+    def update_tree(self, l, r, c) -> None:
+        self.__update_tree(l, r, c, 0, self.n - 1, 1)
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mousePressEvent(event)
@@ -763,6 +839,60 @@ class SegmentTreeView(MyGraphicsView):
                 else:
                     event_item.interval.show()
                 self.cnt ^= 1
+
+    def __build(self, s, t, p) -> None:
+        if s == t:
+            self.tree[p].sum = self.arr[s]
+            self.tree[p].left_interval = s
+            self.tree[p].right_interval = t
+            return
+        mid = (s + t) >> 1
+        self.__build(s, mid, p * 2)
+        self.__build(mid + 1, t, p * 2 + 1)
+        self.tree[p].left_interval = s
+        self.tree[p].right_interval = t
+        self.tree[p].sum = self.tree[p * 2].sum + self.tree[p * 2 + 1].sum
+
+    def __update_tree(self, l, r, c, s, t, p):
+        if l <= s and t <= r:
+            self.tree[p].sum += (t - s + 1) * c
+            self.flags[p] += c
+            return
+        mid = (s + t) >> 1
+        self.__transmit(s, t, p, mid)
+
+        if l <= mid:
+            self.__update_tree(l, r, c, s, mid, p * 2)
+
+        if r > mid:
+            self.__update_tree(l, r, c, mid + 1, t, p * 2 + 1)
+
+        self.tree[p].sum = self.tree[p * 2].sum + self.tree[p * 2 + 1].sum
+
+    def __get_sum(self, l, r, s, t, p) -> int:
+        if l <= s and t <= r:
+            return self.tree[p].sum
+        mid = (s + t) >> 1
+        self.__transmit(s, t, p, mid)
+        sum_ = 0
+
+        if l <= mid:
+            sum_ += self.__get_sum(l, r, s, mid, p * 2)
+
+        if r > mid:
+            sum_ += self.__get_sum(l, r, mid + 1, t, p * 2 + 1)
+
+        return sum_
+
+    def __transmit(self, s, t, p, mid):
+        if self.flags[p] and s != t:
+            self.tree[p * 2].sum += self.flags[p] * (mid - s + 1)
+            self.tree[p * 2 + 1].sum += self.flags[p] * (t - mid)
+            # 将flag标记下传
+            self.flags[p * 2] += self.flags[p]
+            self.flags[p * 2 + 1] += self.flags[p]
+            # 清空当前节点flag标记
+            self.flags[p] = 0
 
 
 class ItemGroup:
@@ -860,10 +990,11 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
 
     view = SegmentTreeView()
-    item = SegmentTreeNode('1', '20', '30')
-    item.setPos(100, 100)
-    view.scene.addItem(item)
+    # item = SegmentTreeNode('0', '2', '30')
+    # item.setPos(0, 0)
+    # view.scene.addItem(item)
 
+    view.make([1, 2, 3, 4, 5])
     view.show()
 
     app.exec()
