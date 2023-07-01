@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     button = PixmapButton("Binary Tree", window)
     button.move(400, 400)
-    pix = QPixmap("../../images/graph.png")
+    pix = QPixmap("../../images/datastructure/graph.png")
     button.set_image(pix)
     button.factor = 1
 
