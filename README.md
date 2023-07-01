@@ -45,7 +45,7 @@ Binary search tree
 
 Graph
 
-![binary_tree](.\images\readme\graph.png)
+![graph](.\images\readme\graph.png)
 
 Segment tree
 
