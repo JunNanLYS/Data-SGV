@@ -2,9 +2,9 @@ from typing import Optional
 
 import PySide6
 from PySide6 import QtCore
-from PySide6.QtCore import QPoint, Qt, QEvent, Signal
+from PySide6.QtCore import QPoint, Qt, QEvent, Signal, QSize
 from PySide6.QtGui import QPainter, QBrush, QColor
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QGraphicsDropShadowEffect
 
 
 class DefaultWidget(QWidget):
@@ -12,7 +12,6 @@ class DefaultWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.resize(500, 500)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setWindowFlags(Qt.FramelessWindowHint)
 
@@ -35,7 +34,7 @@ class MaskWidget(DefaultWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.set_widget_brush(Qt.black)
-        self.widget = parent
+        self.move(self.parent().pos())
         self.resize(parent.width(), parent.height())
         self.hide()
 
@@ -52,8 +51,8 @@ class MaskWidget(DefaultWidget):
         painter.drawRoundedRect(self.rect(), 10, 10)
 
     def update_size(self):
-        width = self.widget.width()
-        height = self.widget.height()
+        width = self.parent().width()
+        height = self.parent().height()
         self.resize(width, height)
 
 
@@ -64,7 +63,7 @@ class RoundedWidget(DefaultWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.resize(1000, 800)
+        self.resize(QSize(1000, 800))
         self.setMinimumWidth(500)
         self.setMinimumHeight(500)
         self.setMouseTracking(True)
@@ -141,6 +140,7 @@ class RoundedWidget(DefaultWidget):
         event_pos = event.position()
         if self.mouse == Qt.MouseButton.LeftButton:
             self.last_position = event_pos.toPoint()
+        event.accept()
 
     def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         event_pos = event.position()
@@ -153,8 +153,7 @@ class RoundedWidget(DefaultWidget):
                     diff = x - self.width()
                     if x < self.minimumWidth():
                         return
-                    self.resize(x, self.height())
-                    self.move(self.x() - diff, self.y())
+                    self.setGeometry(self.x() - diff, self.y(), x, self.height())
                 else:
                     self.resize(event_pos.x() + 10, self.height())
             # 垂直伸缩
@@ -164,8 +163,7 @@ class RoundedWidget(DefaultWidget):
                     diff = y - self.height()
                     if y < self.minimumHeight():
                         return
-                    self.resize(self.width(), y)
-                    self.move(self.x(), self.y() - diff)
+                    self.setGeometry(self.x(), self.y() - diff, self.width(), y)
                 elif self.lower_vertical:
                     self.resize(self.width(), event_pos.y() + 10)
             # 左上和右下伸缩
@@ -177,8 +175,7 @@ class RoundedWidget(DefaultWidget):
                     diff_y = y - self.height()
                     if x < self.minimumWidth() or y < self.minimumHeight():
                         return
-                    self.resize(x, y)
-                    self.move(self.x() - diff_x, self.y() - diff_y)
+                    self.setGeometry(self.x() - diff_x, self.y() - diff_y, x, y)
                 else:
                     self.resize(event_pos.x() + 10, event_pos.y() + 10)
             # 右上和左下伸缩
@@ -188,17 +185,16 @@ class RoundedWidget(DefaultWidget):
                     diff = y - self.height()
                     if y < self.minimumHeight():
                         return
-                    self.resize(event_pos.x() + 10, y)
-                    self.move(self.x(), self.y() - diff)
+                    self.setGeometry(self.x(), self.y() - diff, event_pos.x() + 10, y)
                 else:
                     x = abs(event_pos.x() - self.width() - 10)
                     diff = x - self.width()
                     if x < self.minimumWidth():
                         return
-                    self.resize(x, event_pos.y() + 10)
-                    self.move(self.x() - diff, self.y())
+                    self.setGeometry(self.x() - diff, self.y(), x, event_pos.y() + 10)
             else:
                 self.move(self.mapToGlobal(event_pos.toPoint()) - self.last_position)
+        event.accept()
 
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         self.mouse = Qt.MouseButton.NoButton
@@ -229,6 +225,224 @@ class RoundedWindow(RoundedWidget):
     def hide_mask(self):
         self.__mask.hide()
         self.maskHide.emit()
+
+
+class ShadowWindow(DefaultWidget):
+    sizeChanged = Signal(int, int)
+    maskShow = Signal()
+    maskHide = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self.installEventFilter(self)
+        self._background = BackGround(self)
+        self._isResizeEnabled = True
+        self.mouse = Qt.NoButton
+        self.last_pos = QPoint(0, 0)
+
+        self.resize(QSize(1000, 800))
+
+        self.set_widget_brush(QColor(0, 0, 0, 360))
+
+        # init background
+        radius = self.background().shadow_radius
+        self.resize(QSize(self.width(), self.height()))
+        self.background().move(radius, radius)
+        self.setMinimumSize(QSize(200, 200))
+
+        # init mask
+        self._mask = MaskWidget(self)
+        self._mask.clicked.connect(self.hide_mask)
+
+        # init Qt.Edge dict
+        self.edge_to_obj = {Qt.LeftEdge: False,
+                            Qt.RightEdge: False,
+                            Qt.TopEdge: False,
+                            Qt.BottomEdge: False,
+                            Qt.LeftEdge | Qt.TopEdge: False,
+                            Qt.RightEdge | Qt.TopEdge: False,
+                            Qt.LeftEdge | Qt.BottomEdge: False,
+                            Qt.RightEdge | Qt.BottomEdge: False, }
+
+    def show_mask(self):
+        self._mask.raise_()
+        self._mask.show()
+        self.maskShow.emit()
+
+    def hide_mask(self):
+        self._mask.hide()
+        self.maskHide.emit()
+
+    def resizeEvent(self, event: PySide6.QtGui.QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self.sizeChanged.emit(self.width(), self.height())
+        self._mask.update_size()
+
+    def eventFilter(self, watched: PySide6.QtCore.QObject, event: PySide6.QtCore.QEvent) -> bool:
+        et = event.type()
+        if et != QEvent.MouseMove or not self._isResizeEnabled:
+            return False
+
+        edges = Qt.Edge(0)
+        pos = event.globalPosition().toPoint() - self.pos()
+        if 0 <= pos.x() < self._background.PADDING:
+            edges |= Qt.LeftEdge
+        if self.width() >= pos.x() >= self.width() - self._background.PADDING:
+            edges |= Qt.RightEdge
+        if 0 <= pos.y() < self._background.PADDING:
+            edges |= Qt.TopEdge
+        if self.height() >= pos.y() >= self.height() - self._background.PADDING:
+            edges |= Qt.BottomEdge
+
+        # change cursor style
+        if et == QEvent.MouseMove and self.windowState() == Qt.WindowNoState:
+            if edges in (Qt.LeftEdge | Qt.TopEdge, Qt.RightEdge | Qt.BottomEdge):
+                self.setCursor(Qt.SizeFDiagCursor)
+            elif edges in (Qt.RightEdge | Qt.TopEdge, Qt.LeftEdge | Qt.BottomEdge):
+                self.setCursor(Qt.SizeBDiagCursor)
+            elif edges in (Qt.TopEdge, Qt.BottomEdge):
+                self.setCursor(Qt.SizeVerCursor)
+            elif edges in (Qt.LeftEdge, Qt.RightEdge):
+                self.setCursor(Qt.SizeHorCursor)
+            else:
+                self.setCursor(Qt.ArrowCursor)
+
+        return False
+
+    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        self.mouse = event.button()
+        self.last_pos = event.position().toPoint()
+        edges = Qt.Edge(0)
+        pos = event.globalPosition().toPoint() - self.pos()
+        if 0 <= pos.x() < self._background.PADDING:
+            edges |= Qt.LeftEdge
+        if self.width() >= pos.x() >= self.width() - self._background.PADDING:
+            edges |= Qt.RightEdge
+        if 0 <= pos.y() < self._background.PADDING:
+            edges |= Qt.TopEdge
+        if self.height() >= pos.y() >= self.height() - self._background.PADDING:
+            edges |= Qt.BottomEdge
+
+        self.edge_to_obj[edges] = True
+
+    def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        event_pos = event.position()
+
+        # resize
+        if self.mouse == Qt.MouseButton.LeftButton:
+            if True in self.edge_to_obj.values() and self._isResizeEnabled:
+                radius = self._background.shadow_radius
+                width = self.width() + radius * 2
+                height = self.height() + radius * 2
+                x = abs(event_pos.x() - width - 10)
+                y = abs(event_pos.y() - height - 10)
+                diff_x = x - width
+                diff_y = y - height
+                # 横向伸缩
+                # 左边界
+                if self.edge_to_obj[Qt.LeftEdge]:
+                    if x < self.minimumWidth():
+                        return
+                    self.move(self.x() - diff_x, self.y())
+                    self.resize(QSize(x, height))
+                # 右边界
+                elif self.edge_to_obj[Qt.RightEdge]:
+                    self.resize(QSize(event_pos.x() + 15, height))
+                # 垂直伸缩
+                elif self.edge_to_obj[Qt.TopEdge]:
+                    if y < self.minimumHeight():
+                        return
+                    self.move(self.x(), self.y() - diff_y)
+                    self.resize(QSize(width, y))
+                elif self.edge_to_obj[Qt.BottomEdge]:
+                    self.resize(QSize(width, event_pos.y() + 15))
+                # 左上和右下伸缩
+                elif self.edge_to_obj[Qt.LeftEdge | Qt.TopEdge]:
+                    if x < self.minimumWidth() or y < self.minimumHeight():
+                        return
+                    self.move(self.x() - diff_x, self.y() - diff_y)
+                    self.resize(QSize(x, y))
+                elif self.edge_to_obj[Qt.RightEdge | Qt.BottomEdge]:
+                    self.resize(QSize(event_pos.x() + 15, event_pos.y() + 15))
+                # 右上和左下伸缩
+                elif self.edge_to_obj[Qt.RightEdge | Qt.TopEdge]:
+                    if y < self.minimumHeight():
+                        return
+                    self.move(self.x(), self.y() - diff_y)
+                    self.resize(QSize(event_pos.x() + 15, y))
+                elif self.edge_to_obj[Qt.LeftEdge | Qt.BottomEdge]:
+                    if x < self.minimumWidth():
+                        return
+                    self.move(self.x() - diff_x, self.y())
+                    self.resize(QSize(x, event_pos.y() + 15))
+                else:
+                    self.move(self.mapToGlobal(event_pos.toPoint()) - self.last_pos)
+        else:
+            event.accept()
+
+    def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        self.mouse = Qt.NoButton
+        for v in self.edge_to_obj.keys():
+            self.edge_to_obj[v] = False
+
+    def setResizeEnabled(self, isEnabled: bool):
+        """ set whether resizing is enabled """
+        self._isResizeEnabled = isEnabled
+
+    def background(self):
+        return self._background
+
+    def set_child_parent(self):
+        for child in self.children():
+            if child is self._background:
+                continue
+            child.setParent(self._background)
+
+    def width(self) -> int:
+        return self._background.width()
+
+    def height(self) -> int:
+        return self._background.height()
+
+    def setMinimumSize(self, size: PySide6.QtCore.QSize) -> None:
+        super().setMinimumSize(size)
+        radius = self._background.shadow_radius
+        new_size = size - QSize(radius * 2, radius * 2)
+        self._background.setMinimumSize(QSize(new_size))
+
+    def resize(self, new_size: PySide6.QtCore.QSize) -> None:
+        super().resize(new_size)
+        radius = self.background().shadow_radius
+        size = QSize(radius * 2, radius * 2)
+        self.background().resize(new_size - size)
+
+    def pos(self) -> PySide6.QtCore.QPoint:
+        radius = self.background().shadow_radius
+        point = QPoint(radius, radius)
+        return super().pos() + point
+
+
+class BackGround(DefaultWidget):
+    PADDING = 10
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self.shadow_radius = 10
+
+        # init shadow
+        self.shadow = QGraphicsDropShadowEffect(self)
+        self.shadow.setOffset(0, 0)
+        self.shadow.setColor(QColor(0, 0, 0))
+        self.shadow.setBlurRadius(self.shadow_radius)
+        self.setGraphicsEffect(self.shadow)
+
+        # self.show()
+
+    def set_shadow_radius(self, radius: int):
+        self.shadow_radius = radius
+        self.shadow.setBlurRadius(radius)
 
 
 class MousePosition:

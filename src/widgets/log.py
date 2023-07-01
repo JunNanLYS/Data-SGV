@@ -13,6 +13,7 @@ class LogWidget(PlainTextEdit):
         self.setReadOnly(True)  # only read
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setFixedSize(self.sizeHint())
+        self.setMinimumSize(50, 50)
 
         # init font
         fmt = QTextCharFormat()

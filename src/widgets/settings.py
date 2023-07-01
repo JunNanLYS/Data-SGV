@@ -1,14 +1,14 @@
-from typing import Optional
+from typing import Optional, Union
 
+import PySide6
 from PySide6.QtCore import QSize, Signal, Qt, Slot, QPropertyAnimation, Property
 from PySide6.QtGui import QFont, QColor, QBrush
-
 from PySide6.QtWidgets import QApplication, QWidget, QLayout, QLabel, QHBoxLayout, QVBoxLayout, QSpacerItem, \
     QSizePolicy, QGraphicsDropShadowEffect
-from src.tool import PathTool, JsonSettingTool, stop_time
-
 from qfluentwidgets import SpinBox, ComboBox, SmoothScrollArea, Slider, PushButton
-from windows import DefaultWidget
+
+from src.tool import stop_time
+from src.widgets.window import DefaultWidget
 
 
 class UiSetting(DefaultWidget):
@@ -53,14 +53,18 @@ class DefaultSettings(UiSetting):
             "font_color": "black",
             "font_family": "Segoe",
             "edge": "ArrowLineWithWeight"
-        }
+        },
+        "segment_tree": {
+            "interval": "Show",
+            "flag": "Hide",
+        },
     }
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout_local: Optional[QLayout] = None
         self.layout_global: Optional[QLayout] = None
-        self.resize(250, 630)
+        self.resize(QSize(250, 630))
         self.setMinimumWidth(250)
         self.vertical_layout = QVBoxLayout(self)
         self.scroll_area = SmoothScrollArea(self)
@@ -71,6 +75,9 @@ class DefaultSettings(UiSetting):
         self.scroll_area_widget = QWidget(self.scroll_area)
         self.scroll_area.setWidget(self.scroll_area_widget)
         self.layout_main = QVBoxLayout(self.scroll_area_widget)
+        self.font = QFont()
+        self.font.setFamilies(["Segoe UI"])
+        self.font.setPointSize(12)
 
         # init widget
         self.__init_global_setting()
@@ -81,16 +88,13 @@ class DefaultSettings(UiSetting):
         self.layout_main.addItem(self.verticalSpacer)
 
         # signal connect slot
-        self.parent().sizeChanged.connect(self.parent_changed)
+        self.parent().sizeChanged.connect(self.resize)
         self.parent().closeSetting.connect(self.close)
         self.parent().openSetting.connect(self.open)
         self.button_save.clicked.connect(self.save)
-        self.saved.connect(self.parent().hide_mask)
+        self.saved.connect(self.parent().maskHide)
 
         self.slider_animation_speed.valueChanged.connect(self.set_animation_speed)
-
-        # size
-        self.resize(parent.width() // 4, parent.height())
 
         # property animation init
         self.anim = QPropertyAnimation()
@@ -110,13 +114,29 @@ class DefaultSettings(UiSetting):
         self.anim.setTargetObject(self)
         self.anim.setPropertyName(b"close_animation")
         self.anim.setStartValue(0)
-        self.anim.setEndValue(0 - self.width() - 10)
+        self.anim.setEndValue(0 - self.width())
         self.anim.setDuration(500)
         self.anim.start()
         stop_time(millisecond=500)
         self.hide()
 
         self.setGraphicsEffect(None)
+
+    def local_add(self, T: Union[QWidget, QLayout, QSpacerItem]):
+        if isinstance(T, QWidget):
+            self.layout_local.addWidget(T)
+        elif isinstance(T, QLayout):
+            self.layout_local.addLayout(T)
+        elif isinstance(T, QSpacerItem):
+            self.layout_local.addItem(T)
+
+    def global_add(self, T: Union[QWidget, QLayout, QSpacerItem]):
+        if isinstance(T, QWidget):
+            self.layout_global.addWidget(T)
+        elif isinstance(T, QLayout):
+            self.layout_global.addLayout(T)
+        elif isinstance(T, QSpacerItem):
+            self.layout_global.addItem(T)
 
     def local_add_widget(self, widget: QWidget):
         self.layout_local.addWidget(widget)
@@ -155,8 +175,8 @@ class DefaultSettings(UiSetting):
 
         # shadow
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setOffset(8, 3)
-        shadow.setColor(Qt.gray)
+        shadow.setOffset(3, 2)
+        shadow.setColor(QColor(63, 63, 63))
         self.setGraphicsEffect(shadow)
 
     def save(self):
@@ -168,9 +188,10 @@ class DefaultSettings(UiSetting):
         value = self.slider_animation_speed.value()
         self.label_animation_speed.setText(f"Animation speed: {round(value * 0.1, 1)}")
 
-    @Slot(int, int)
-    def parent_changed(self, width, height):
-        self.resize(width // 4 + 30, height)
+    def resize(self, new_size: PySide6.QtCore.QSize) -> None:
+        new_width = new_size.width()
+        new_height = new_size.height()
+        super().resize(new_width // 4 + 30, new_height)
 
     def __config(self):
         # read
@@ -394,10 +415,10 @@ class GraphSettings(DefaultSettings):
         layout_edge.addWidget(self.combobox_edge)
 
         # add to local layout
-        self.local_add_layout(layout_font_size)
-        self.local_add_layout(layout_font_color)
-        self.local_add_layout(layout_font_family)
-        self.local_add_layout(layout_edge)
+        self.local_add(layout_font_size)
+        self.local_add(layout_font_color)
+        self.local_add(layout_font_family)
+        self.local_add(layout_edge)
 
     def __config(self):
         # read
@@ -415,13 +436,70 @@ class GraphSettings(DefaultSettings):
         return
 
 
+class SegmentTreeSettings(DefaultSettings):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.__init_local_setting()  # 设置Local所需的控件
+        self.__config()  # 标记配置文件
+
+    def save(self):
+        super().save()
+        config = self.settings_dict["segment_tree"]
+        interval = self.combobox_interval.text()
+        flag = self.combobox_flag.text()
+        config["interval"] = interval
+        config["flag"] = flag
+        self.saved.emit(self.settings_dict)
+
+    def open(self):
+        super().open()
+        self.__config()
+
+    def __init_local_setting(self):
+        # interval
+        layout_interval = QHBoxLayout(self.scroll_area_widget)
+        label_interval = QLabel("Interval -> ", self.scroll_area_widget)
+        label_interval.setFont(self.font)
+        layout_interval.addWidget(label_interval)
+
+        self.combobox_interval = ComboBox(self.scroll_area_widget)
+        self.combobox_interval.addItems(["Show", "Hide"])
+        layout_interval.addWidget(self.combobox_interval)
+
+        # flag
+        layout_flag = QHBoxLayout(self.scroll_area_widget)
+        label_flag = QLabel("Flag -> ", self.scroll_area_widget)
+        label_flag.setFont(self.font)
+        layout_flag.addWidget(label_flag)
+
+        self.combobox_flag = ComboBox(self.scroll_area_widget)
+        self.combobox_flag.addItems(["Show", "Hide"])
+        layout_flag.addWidget(self.combobox_flag)
+
+        # add to local layout
+        self.local_add(layout_interval)
+        self.local_add(layout_flag)
+
+    def __config(self):
+        # read
+        setting = self.settings_dict["segment_tree"]
+        interval = setting['interval']
+        flag = setting['flag']
+
+        # load
+        self.combobox_interval.setCurrentText(interval)
+        self.combobox_flag.setCurrentText(flag)
+        return
+
+
 if __name__ == "__main__":
-    from src.widgets.windows import RoundedWindow
+    from src.widgets.data_structure_windows import SegmentTreeDataStructure
 
     app = QApplication()
 
-    window = RoundedWindow()
-    settings = GraphSettings(window)
+    window = SegmentTreeDataStructure()
+    settings = SegmentTreeSettings(window)
     # settings.set_widget_brush(Qt.gray)
     button = PushButton(window)
     button.setText("test")

@@ -6,10 +6,11 @@ from typing import Tuple, Optional, Union
 import PySide6
 from PySide6.QtCore import QPoint, Property, QPropertyAnimation, Qt, QPointF, Signal
 from PySide6.QtGui import QCursor, QPainter, QTransform, QColor, QFont
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsItem
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphicsItem, QGraphicsDropShadowEffect
 
 from src.data_structure.binary_tree import TreeNode
 from src.data_structure.graph import GraphNode
+from src.data_structure.segment_tree import SegmentTreeNode
 from src.tool import stop_time
 from src.widgets.line_item import GraphicsLineItem, Line, LineEnum, ArrowLine
 from src.widgets.node_item import NodeModeEnum
@@ -40,13 +41,21 @@ class MyGraphicsView(QGraphicsView):
             """
         )
 
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setOffset(0, 0)
+        shadow.setBlurRadius(3)
+        shadow.setColor(QColor(63, 63, 63))
+        self.setGraphicsEffect(shadow)
+
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mousePressEvent(event)
         self.mouse = event.button()
-        if event.button() == Qt.MiddleButton:
+        if event.button() is Qt.MiddleButton:
             self.last_pos = self.mapToScene(event.position().toPoint())
             return
 
     def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mouseMoveEvent(event)
         if self.mouse == Qt.MiddleButton:
             dp = self.mapToScene(event.position().toPoint()) - self.last_pos
             sRect = self.sceneRect()
@@ -55,10 +64,8 @@ class MyGraphicsView(QGraphicsView):
             return
 
     def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mouseReleaseEvent(event)
         self.mouse = Qt.MouseButton.NoButton
-
-    def mouseDoubleClickEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        self.mouseReleaseEvent(event)
 
     def wheelEvent(self, event) -> None:
         zoomInFactor = 1.25  # 放大因子
@@ -431,7 +438,6 @@ class GraphView(MyGraphicsView):
     clickedItem = Signal(int)  # 0 is line, 1 is node
     nodeInfo = Signal(int, str)
     edgeInfo = Signal(int, str, str, str, str)
-    diaLog = Signal(str, str)
 
     def __init__(self):
         super(GraphView, self).__init__()
@@ -574,6 +580,7 @@ class GraphView(MyGraphicsView):
                 self.pre_item.switch_mode(NodeModeEnum.DEFAULT, False)
                 self.pre_item = None
         self.pre_item = event_item
+        event.accept()
 
     def mouseMoveEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
         super().mouseMoveEvent(event)
@@ -742,6 +749,227 @@ class GraphView(MyGraphicsView):
         self.redraw()
 
 
+# 线段树
+class SegmentTreeView(MyGraphicsView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # config init
+        self.animation_time = 1000  # millisecond
+        self.animation_line = None
+
+        self.n = 0
+        self.arr = []
+        self.tree: list[SegmentTreeNode] = []
+        self.flags = []
+        self.built = False
+
+    def connect_node(self, p: SegmentTreeNode, c: SegmentTreeNode):
+        new_line = GraphicsLineItem.new_line(p, c, LineEnum.LINE)
+        self.scene.addItem(new_line)
+        return new_line
+
+    def build_tree(self):
+        root = self.tree[1]
+        root.setPos(self.scene.width() / 2, 100)
+        self.scene.addItem(root)
+        cur_depth = 0
+        max_depth = 0
+        idx = 1
+        while idx < len(self.tree):
+            if self.tree[idx].left_interval == -1:
+                break
+            max_depth += 1
+            idx *= 2
+
+        q = [(self.tree[2], root, 'l', 2), (self.tree[3], root, 'r', 3)]
+        while q:
+            temp = []
+            for node, parent, direction, p in q:
+                # invalid node
+                if node.left_interval == -1 and node.right_interval == -1:
+                    continue
+
+                # left node
+                if p * 2 < len(self.tree):
+                    nex = self.tree[p * 2]
+                    temp.append((nex, node, 'l', p * 2))
+
+                # right node
+                if p * 2 + 1 < len(self.tree):
+                    nex = self.tree[p * 2 + 1]
+                    temp.append((nex, node, 'r', p * 2 + 1))
+
+                new_pos = self.calculated_pos(parent, direction, cur_depth, max_depth - 1)
+                self.scene.addItem(node)
+                node.setPos(new_pos)
+                new_line = self.connect_node(parent, node)
+                if direction == 'l':
+                    parent.l_line = new_line
+                else:
+                    parent.r_line = new_line
+
+            q = temp
+            cur_depth += 1
+        self.built = True
+
+    def calculated_pos(self, parent: SegmentTreeNode, directions, cur_depth, max_depth) -> QPointF:
+        """calculated node position"""
+        space_between = pow(2, max_depth - cur_depth) - 2
+        # x = parent.x position +/- (spacing * space_between) +/- node radius
+        # y = parent.y position + spacing
+        r = parent.node.boundingRect().center().x()
+        x_spacing = parent.node.boundingRect().center().x()
+        y_spacing = parent.node.boundingRect().center().y() + 50
+        x_parent = parent.pos().x()
+        y_parent = parent.pos().y()
+        x = x_parent - (space_between * x_spacing) - r if directions == 'l' else \
+            x_parent + (space_between * x_spacing) + r
+        y = y_parent + y_spacing
+
+        pos = QPointF(x, y)
+        return pos
+
+    def make(self, arr: list) -> None:
+        self.n = len(arr)
+        self.arr = arr
+        self.tree = [SegmentTreeNode(i, -1, -1, 0) for i in range(self.n * 4 - 5)]
+        self.flags = [0] * (self.n * 4 - 5)
+        self.__build(0, self.n - 1, 1)
+        self.build_tree()
+
+    def get_sum(self, l, r) -> int:
+        self.redraw()
+        return self.__get_sum(l, r, 0, self.n - 1, 1)
+
+    def update_tree(self, l, r, c) -> None:
+        self.redraw()
+        self.__update_tree(l, r, c, 0, self.n - 1, 1)
+
+    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+        super().mousePressEvent(event)
+        event_pos = event.position().toPoint()
+        event_item = self.itemAt(event_pos)
+        while event_item and event_item.group():
+            event_item = event_item.group()
+
+        if self.mouse is Qt.LeftButton:
+            if isinstance(event_item, SegmentTreeNode):
+                if event_item.interval.is_hidden():
+                    event_item.interval.show()
+                else:
+                    event_item.interval.hide()
+        event.accept()
+
+    @Property(QPointF)
+    def connect_line(self):
+        return self.animation_line.line_end
+
+    @connect_line.setter
+    def connect_line(self, p: QPointF):
+        self.animation_line.line_end = p
+
+    def animation_line_start(self, line: Optional[Line]):
+        self.animation_line = line
+        self.animation_line.traversal()
+
+        anim = QPropertyAnimation(self, b'connect_line')
+        anim.setStartValue(self.animation_line.line_start)
+        anim.setEndValue(self.animation_line.line_end)
+        anim.setDuration(self.animation_time)
+        anim.start()
+        stop_time(millisecond=self.animation_time)
+
+    def redraw(self):
+        """redraw all items in the scene"""
+        for node in self.tree:
+            node.switch_mode(NodeModeEnum.DEFAULT)
+            if node.l_line:
+                node.l_line.default()
+            if node.r_line:
+                node.r_line.default()
+
+    def __build(self, s, t, p) -> None:
+        if s == t:
+            self.tree[p].sum = self.arr[s]
+            self.tree[p].left_interval = s
+            self.tree[p].right_interval = t
+            return
+        mid = (s + t) >> 1
+        self.__build(s, mid, p * 2)
+        self.__build(mid + 1, t, p * 2 + 1)
+        self.tree[p].left_interval = s
+        self.tree[p].right_interval = t
+        self.tree[p].sum = self.tree[p * 2].sum + self.tree[p * 2 + 1].sum
+
+    def __update_tree(self, l, r, c, s, t, p):
+        self.tree[p].switch_mode(NodeModeEnum.PATH)
+        if l <= s and t <= r:
+            self.log.emit(f"index: {p}, this node is between the {s} and {r} ")
+            self.tree[p].switch_mode(NodeModeEnum.SELECTED)
+            self.tree[p].sum += (t - s + 1) * c
+            self.flags[p] += c
+            return
+        mid = (s + t) >> 1
+        self.__transmit(s, t, p, mid)
+
+        if l <= mid:
+            self.log.emit(f"left < mid, search left")
+            self.animation_line_start(self.tree[p].l_line)
+            self.__update_tree(l, r, c, s, mid, p * 2)
+
+        if r > mid:
+            self.log.emit(f"right > mid, search right")
+            self.animation_line_start(self.tree[p].r_line)
+            self.__update_tree(l, r, c, mid + 1, t, p * 2 + 1)
+
+        self.tree[p].sum = self.tree[p * 2].sum + self.tree[p * 2 + 1].sum
+
+    def __get_sum(self, l, r, s, t, p) -> int:
+        self.tree[p].switch_mode(NodeModeEnum.PATH)
+        if l <= s and t <= r:
+            self.log.emit(f"index: {p}, this node is between the {s} and {r} ")
+            self.tree[p].switch_mode(NodeModeEnum.SELECTED)
+            return self.tree[p].sum
+        mid = (s + t) >> 1
+        self.__transmit(s, t, p, mid)
+        sum_ = 0
+
+        if l <= mid:
+            self.log.emit(f"left < mid, search left")
+            self.animation_line_start(self.tree[p].l_line)
+            sum_ += self.__get_sum(l, r, s, mid, p * 2)
+
+        if r > mid:
+            self.log.emit(f"right > mid, search right")
+            self.animation_line_start(self.tree[p].r_line)
+            sum_ += self.__get_sum(l, r, mid + 1, t, p * 2 + 1)
+
+        return sum_
+
+    def __transmit(self, s, t, p, mid):
+        if self.flags[p] and s != t:
+            self.log.emit(f"index: {p} have flag")
+            # left node
+            self.log.emit("transmit sum to left")
+            self.animation_line_start(self.tree[p].l_line)
+            self.tree[p * 2].switch_mode(NodeModeEnum.CREATOR)
+            self.tree[p * 2].sum += self.flags[p] * (mid - s + 1)
+
+            # right node
+            self.log.emit("transmit sum to right")
+            self.animation_line_start(self.tree[p].r_line)
+            self.tree[p * 2 + 1].switch_mode(NodeModeEnum.CREATOR)
+            self.tree[p * 2 + 1].sum += self.flags[p] * (t - mid)
+
+            # 将flag标记下传
+            self.log.emit("transmit flag to left")
+            self.flags[p * 2] += self.flags[p]
+            self.log.emit("transmit flag to right")
+            self.flags[p * 2 + 1] += self.flags[p]
+            # 清空当前节点flag标记
+            self.flags[p] = 0
+
+
 class ItemGroup:
     def __init__(self):
         self.__items = defaultdict(list)
@@ -800,7 +1028,7 @@ class ItemGroup:
 
 
 if __name__ == '__main__':
-    # -----------二叉树----------
+    # -----------Binary Tree----------
     # app = QApplication(sys.argv)
     # view = BinaryTreeView()
     # view.show()
@@ -815,20 +1043,34 @@ if __name__ == '__main__':
     # view.delete_node("20")
     # sys.exit(app.exec())
 
-    # ------------图-------------
-    app = QApplication(sys.argv)
-    view = GraphView()
-    ZheJiang = GraphNode('Name1')
-    ShangHai = GraphNode('Name2')
-    view.scene.addItem(ZheJiang)
-    view.scene.addItem(ShangHai)
-    view.nodes['Name1'] = ZheJiang
-    view.nodes['Name2'] = ShangHai
-    ZheJiang.setPos(QPointF(300, 100))
-    ShangHai.setPos(QPointF(400, 100))
+    # ------------Graph-------------
+    # app = QApplication(sys.argv)
+    # view = GraphView()
+    # ZheJiang = GraphNode('Name1')
+    # ShangHai = GraphNode('Name2')
+    # view.scene.addItem(ZheJiang)
+    # view.scene.addItem(ShangHai)
+    # view.nodes['Name1'] = ZheJiang
+    # view.nodes['Name2'] = ShangHai
+    # ZheJiang.setPos(QPointF(300, 100))
+    # ShangHai.setPos(QPointF(400, 100))
     # view.connect_node("Name1", "Name2")
     # line = GraphicsLineItem.new_line(ZheJiang, ShangHai, LineEnum.LINE)
     # view.scene.addItem(line)
 
+    # view.show()
+    # sys.exit(app.exec())
+
+    # ------------Segment Tree-------------
+    app = QApplication(sys.argv)
+
+    view = SegmentTreeView()
+    view.make([1, 2, 3, 4, 5, 6])
     view.show()
-    sys.exit(app.exec())
+
+    print(view.get_sum(1, 4))
+    stop_time(1)
+    view.redraw()
+    view.update_tree(1, 4, 4)
+
+    app.exec()

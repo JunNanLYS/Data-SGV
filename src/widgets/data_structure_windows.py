@@ -1,24 +1,30 @@
 from typing import Union
-from viztracer import VizTracer
 
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QLayout, QLayoutItem, QHBoxLayout, QSpacerItem, QSizePolicy, QLabel
-from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox, PushButton, Dialog
+from PySide6.QtCore import Signal, Qt, QSize
+from PySide6.QtGui import QFont, QColor, QPainter
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QLayout, QLayoutItem, QHBoxLayout, QSpacerItem, QSizePolicy, QLabel, \
+    QGraphicsDropShadowEffect
+from qfluentwidgets import ToolButton, FluentIcon, LineEdit, ComboBox, PushButton, Dialog, MessageBox
 
-from src.widgets.graphics_view import MyGraphicsView, BinaryTreeView, GraphView
-from src.widgets.settings import DefaultSettings, GraphSettings, TreeSettings
-from windows import RoundedWindow
-from log import LogWidget
+from src.widgets.graphics_view import MyGraphicsView, BinaryTreeView, GraphView, SegmentTreeView
+from src.widgets.settings import DefaultSettings, GraphSettings, TreeSettings, SegmentTreeSettings
+from src.widgets.window import RoundMainWindow
+from src.widgets.log import LogWidget
+
+from src.auxiliary_function import layout_add_obj, layout_add_bojs, label_minimum_size
+
+font_title = QFont()
+font_title.setFamily("Segoe")
+font_title.setPointSize(20)
+font_title.setBold(True)
+font = QFont()
+font.setFamily("Segoe")
+font.setPointSize(13)
 
 
-class DataStructureWidget(RoundedWindow):
+class DataStructureWidget(RoundMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-
-    def __init_menu_widget(self):
-        """init menu widget"""
-        raise NotImplementedError
 
     def __init_graphics_tool_widget(self):
         """init graphics tool widget"""
@@ -31,54 +37,29 @@ class DataStructureWindow(DataStructureWidget):
 
     def __init__(self, parent=None, setting_w=DefaultSettings, graphics_w=MyGraphicsView):
         super().__init__(parent)
-        self.layout_main = QVBoxLayout(self)
-
         # init widget
         self.setting_widget = setting_w(self)
         self.setting_widget.hide()
         self.graphics_view = graphics_w()
-        self.__init_menu_widget()
         self.__init_graphics_widget()
+        self.setMinimumSize(QSize(800, 600))
+        self.resize(1000, 600)
 
-        # init menu widget
-        self.t_setting = ToolButton(FluentIcon.SETTING, self)
-        self.t_close = ToolButton(FluentIcon.CLOSE, self)
-        self.t_return = ToolButton(FluentIcon.RETURN, self)
-        self.t_zoom = ToolButton(FluentIcon.ZOOM, self)
+        # init title bar widget
+        self.t_setting = ToolButton(FluentIcon.SETTING, self.title_bar)
+        self.i_setting = ToolButton(FluentIcon.INFO, self.title_bar)
 
         # signal connect slot
-        self.t_setting.clicked.connect(self.show_mask)
+        self.t_setting.clicked.connect(self.maskShow)
         self.t_setting.clicked.connect(self.openSetting)
         self.maskHide.connect(self.closeSetting)
 
-        self.t_close.clicked.connect(self.close)
-        self.t_zoom.clicked.connect(self.zoom)
-
-        # add to layout
-        self.add_to_settings_layout(self.t_setting)
-        self.add_to_tools_layout(self.t_return)
-        self.add_to_tools_layout(self.t_zoom)
-        self.add_to_tools_layout(self.t_close)
-
-    def add_to_settings_layout(self, obj: Union[QWidget, QLayout, QLayoutItem]):
-        self.layout_add_ojb(self.layout_settings, obj)
-
-    def add_to_tools_layout(self, obj: Union[QWidget, QLayout, QLayoutItem]):
-        self.layout_add_ojb(self.layout_tools, obj)
+        # add to title bar layout
+        self.title_bar.left_add_obj(self.t_setting)
+        self.title_bar.left_add_obj(self.i_setting)
 
     def add_to_graphics_tool_layout(self, obj: Union[QWidget, QLayout, QLayoutItem]):
-        self.layout_add_ojb(self.layout_graphics_tools, obj)
-
-    def layout_add_ojb(self, layout: Union[QLayout, QHBoxLayout, QVBoxLayout],
-                       obj: Union[QWidget, QLayout, QLayoutItem]):
-        if isinstance(obj, QLayout):
-            layout.addLayout(obj)
-        elif isinstance(obj, QWidget):
-            layout.addWidget(obj)
-        elif isinstance(obj, QLayoutItem):
-            layout.addItem(obj)
-        else:
-            raise TypeError("obj not is Union[QWidget, QLayout, QLayoutItem]")
+        layout_add_obj(self.layout_graphics_tools, obj)
 
     def layout_group(self, layout_cls, widgets) -> Union[QLayout, QHBoxLayout, QVBoxLayout]:
         layout = layout_cls(self)
@@ -89,41 +70,30 @@ class DataStructureWindow(DataStructureWidget):
                 layout.addItem(widget)
         return layout
 
-    def zoom(self):
-        if self.isFullScreen():
-            self.showNormal()
-            return
-        self.showFullScreen()
-
     def show_dialog(self, title, text):
         dialog = Dialog(title, text)
         dialog.show()
 
-    def __init_menu_widget(self):
-        # init layout
-        self.layout_menu = QHBoxLayout()
-        self.layout_settings = QHBoxLayout()
-        self.layout_tools = QHBoxLayout()
-        self.spacer_menu = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        # add to layout
-        self.layout_menu.addLayout(self.layout_settings)
-        self.layout_menu.addItem(self.spacer_menu)
-        self.layout_menu.addLayout(self.layout_tools)
-        self.layout_main.addLayout(self.layout_menu)
+    def show_messagebox(self, title, text):
+        messagebox = MessageBox(title, text, self)
+        messagebox.show()
 
     def __init_graphics_widget(self):
         # init layout
         self.layout_title = QHBoxLayout()
+        self.layout_title.setContentsMargins(10, 10, 10, 10)
         self.layout_graphics = QHBoxLayout()
+        self.layout_graphics.setContentsMargins(10, 10, 10, 10)
         self.layout_graphics_tools = QVBoxLayout()
+        self.layout_graphics_tools.setSpacing(10)
+        self.layout_graphics_tools.setContentsMargins(10, 0, 0, 0)
 
         # init graphics view
         self.graphics_view.setParent(self)
 
         # add to layout
-        self.layout_graphics.addWidget(self.graphics_view)
-        self.layout_graphics.addLayout(self.layout_graphics_tools)
+        self.layout_graphics.addWidget(self.graphics_view, 3)
+        self.layout_graphics.addLayout(self.layout_graphics_tools, 1)
         self.layout_main.addLayout(self.layout_title)
         self.layout_main.addLayout(self.layout_graphics)
 
@@ -318,36 +288,20 @@ class GraphDataStructure(DataStructureWindow):
         pass
 
     def __init_title(self):
-        font = QFont()
-        font.setPointSize(30)
-        font.setFamily("Segoe")
-        font.setBold(True)
+        _font_title = QFont()
+        _font_title.setPointSize(30)
+        _font_title.setFamily("Segoe")
+        _font_title.setBold(True)
         title = QLabel(" Graph", self)
-        title.setFont(font)
+        title.setFont(_font_title)
         self.layout_title.addWidget(title)
 
     def __init_graphics_tool_widget(self):
-        def set_label_size(lab: QLabel):
-            fm = lab.fontMetrics()
-            width = fm.horizontalAdvance(lab.text())
-            height = fm.height() + 10
-            lab.setMinimumSize(width, height)
-            lab.setMaximumHeight(height)
-
-        # init font
-        font_title = QFont()
-        font_title.setFamily("Segoe")
-        font_title.setPointSize(20)
-        font_title.setBold(True)
-        font = QFont()
-        font.setFamily("Segoe")
-        font.setPointSize(15)
-
         # init widget
         self.label_log = QLabel("Log", self)  # label log
         self.label_log.setFont(font_title)
         self.label_log.setAlignment(Qt.AlignCenter)
-        set_label_size(self.label_log)
+        label_minimum_size(self.label_log)
         self.log_widget = LogWidget(self)
 
         self.layout_info = QVBoxLayout()
@@ -361,7 +315,7 @@ class GraphDataStructure(DataStructureWindow):
         self.label_info = QLabel("Info", self)  # label info
         self.label_info.setAlignment(Qt.AlignCenter)
         self.label_info.setFont(font_title)
-        set_label_size(self.label_info)
+        label_minimum_size(self.label_info)
 
         self.label_name = QLabel("Name  ", self.widget_info)  # label name
 
@@ -371,7 +325,7 @@ class GraphDataStructure(DataStructureWindow):
         self.label_edge = QLabel("Edge  ", self.widget_info)  # edge type
         labels = [self.label_name, self.label_weight, self.label_edge, self.label_start, self.label_end]
         for label in labels:
-            set_label_size(label)
+            label_minimum_size(label)
             label.setFont(font)
 
         self.line_edit_name = LineEdit(self.widget_info)
@@ -429,11 +383,188 @@ class GraphDataStructure(DataStructureWindow):
         self.add_to_graphics_tool_layout(self.log_widget)
 
 
+class SegmentTreeDataStructure(DataStructureWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent, SegmentTreeSettings, SegmentTreeView)
+        self.__init_title()
+        self.__init_menu_widget()
+        self.__init_graphics_tool_widget()
+
+        # connect signal to slot
+        self.button_create.clicked.connect(self.create_tree)
+        self.button_create.clicked.connect(self.line_edit_create.clear)
+
+        self.button_query.clicked.connect(self.range_query)
+        self.button_query.clicked.connect(self.line_edit_l_query.clear)
+        self.button_query.clicked.connect(self.line_edit_r_query.clear)
+
+        self.button_update.clicked.connect(self.range_update)
+        self.button_update.clicked.connect(self.line_edit_l_update.clear)
+        self.button_update.clicked.connect(self.line_edit_r_update.clear)
+        self.button_update.clicked.connect(self.line_edit_v_update.clear)
+
+        self.graphics_view.log.connect(self.log_widget.append)
+
+    def create_tree(self):
+        self.graphics_view: SegmentTreeView
+        arr = self.line_edit_create.text()
+        arr = arr.replace("[", "")
+        arr = arr.replace("]", "")
+        try:
+            arr = list(map(int, arr.split(",")))
+        except ValueError:
+            self.show_messagebox(
+                title="Error",
+                text="please input a number, split by comma. you can input 1,2,3, or 1, 2, 3, or [1, 2, 3]"
+            )
+            return
+        self.graphics_view.make(arr)
+
+    def range_query(self):
+        self.graphics_view: SegmentTreeView
+        left = self.line_edit_l_query.text()
+        right = self.line_edit_r_query.text()
+
+        if not self._check(left, right):
+            return
+
+        self.graphics_view.get_sum(int(left), int(right))
+
+    def range_update(self):
+        self.graphics_view: SegmentTreeView
+        left = self.line_edit_l_update.text()
+        right = self.line_edit_r_update.text()
+        val = self.line_edit_v_update.text()
+
+        if not self._check(left, right) and not val.isdigit():
+            return
+
+        self.graphics_view.update_tree(int(left), int(right), int(val))
+
+    def _check(self, left, right) -> bool:
+        self.graphics_view: SegmentTreeView
+        if self.graphics_view.built is False:
+            self._not_tree_message()
+            return False
+        if left == "" or right == "":
+            self._empty_message()
+            return False
+        if not (left.isdigit() and right.isdigit()):
+            self._not_a_number()
+            return False
+
+        return True
+
+    def _empty_message(self):
+        self.show_messagebox(
+            title="Error",
+            text="left or right can't empty"
+        )
+
+    def _not_tree_message(self):
+        self.show_messagebox(
+            title="Error",
+            text="you must create a tree"
+        )
+
+    def _not_a_number(self):
+        self.show_messagebox(
+            title="Error",
+            text="left or right is not a number"
+        )
+
+    def __init_menu_widget(self):
+        pass
+
+    def __init_graphics_tool_widget(self):
+        # create tree
+        layout_create = QHBoxLayout()
+        self.line_edit_create = LineEdit(self)
+        layout_create.addWidget(self.line_edit_create)
+
+        self.button_create = PushButton("Create Tree", self)
+        layout_create.addWidget(self.button_create)
+
+        # range query
+        layout_query = QHBoxLayout()
+        label_l_query = QLabel("Left:", self)
+        label_l_query.setFont(font)
+        label_r_query = QLabel("Right:", self)
+        label_r_query.setFont(font)
+
+        self.line_edit_l_query = LineEdit(self)
+        self.line_edit_r_query = LineEdit(self)
+
+        self.button_query = PushButton("Range Query  ", self)
+
+        layout_query.addWidget(label_l_query)
+        layout_query.addWidget(self.line_edit_l_query)
+        layout_query.addWidget(label_r_query)
+        layout_query.addWidget(self.line_edit_r_query)
+        layout_query.addWidget(self.button_query)
+
+        # range update
+        layout_update = QHBoxLayout()
+        label_l_update = QLabel("Left:", self)
+        label_l_update.setFont(font)
+        label_r_update = QLabel("Right:", self)
+        label_r_update.setFont(font)
+        label_v_update = QLabel("Val:", self)
+        label_v_update.setFont(font)
+
+        self.line_edit_l_update = LineEdit(self)
+        self.line_edit_r_update = LineEdit(self)
+        self.line_edit_v_update = LineEdit(self)
+
+        self.button_update = PushButton("Range Update", self)
+
+        layout_update.addWidget(label_l_update)
+        layout_update.addWidget(self.line_edit_l_update)
+        layout_update.addWidget(label_r_update)
+        layout_update.addWidget(self.line_edit_r_update)
+        layout_update.addWidget(label_v_update)
+        layout_update.addWidget(self.line_edit_v_update)
+        layout_update.addWidget(self.button_update)
+
+        # log widget
+        layout_log = QVBoxLayout()
+        label_log = QLabel("Log", self)
+        label_log.setFont(font_title)
+        label_log.setAlignment(Qt.AlignCenter)
+
+        self.log_widget = LogWidget(self)
+
+        layout_log.addWidget(label_log)
+        layout_log.addWidget(self.log_widget)
+
+        # set label mini size
+        labels = [label_log, label_r_update, label_l_update, label_r_query, label_l_query]
+        for label in labels:
+            label_minimum_size(label)
+
+        # add to layout
+        self.add_to_graphics_tool_layout(layout_create)
+        self.add_to_graphics_tool_layout(layout_query)
+        self.add_to_graphics_tool_layout(layout_update)
+        self.add_to_graphics_tool_layout(layout_log)
+
+    def __init_title(self):
+        _font_title = QFont()
+        _font_title.setPointSize(30)
+        _font_title.setFamily("Segoe")
+        _font_title.setBold(True)
+        title = QLabel("Segment Tree", self)
+        title.setFont(_font_title)
+        self.layout_title.addWidget(title)
+
+
 if __name__ == '__main__':
     import sys
     from PySide6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    window = TreeDataStructure()
-    window.show()
+    window1 = SegmentTreeDataStructure()
+    window1.show()
+    # window2 = GraphDataStructure()
+    # window2.show()
     sys.exit(app.exec())
