@@ -41,11 +41,15 @@ Visualization of data structure makes it easier for students to learn data struc
 
 Binary search tree
 
-![binary_tree](.\images\readme\binary_tree.png)
+![binary_tree](./images/readme/binary_tree.png)
+
+
 
 Graph
 
-![graph](.\images\readme\graph.png)
+![graph](./images/readme/graph.png)
+
+
 
 Segment tree
 
