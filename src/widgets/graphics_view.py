@@ -1,3 +1,4 @@
+import copy
 import sys
 from collections import defaultdict, deque
 from datetime import datetime
@@ -330,8 +331,6 @@ class BinaryTreeView(MyGraphicsView):
         if root is None:
             return
         print("redraw_tree: 重绘二叉树")
-        print(f"root: {root.cur_depth(root)}")
-        print(f"_root: {self._root.cur_depth(self._root)}")
         root.setPos(QPointF(self.root_x, self.root_y))
         root.itemChange(root.GraphicsItemChange.ItemVisibleHasChanged, True)
         q = []
@@ -455,7 +454,7 @@ class GraphView(MyGraphicsView):
         self.animation_edge: Optional[Line] = None
         names = [x for x in range(1, 1001)]
         self.node_default_names = deque(map(str, names))
-        self.pre_item: Optional[GraphNode, Line] = None  # 存储地址
+        self.pre_item: Optional[GraphNode, Line] = None
         self.traversal = False
 
     def add_node(self, position: QPoint) -> GraphNode:
@@ -477,7 +476,7 @@ class GraphView(MyGraphicsView):
         res_node.set_text_brush(self.font_color)
         return res_node
 
-    def delete_item(self, delete_item: Union[GraphNode, Line]) -> None:
+    def delete_item(self, delete_item: Union[GraphNode, Line], new_item=None) -> None:
         if isinstance(delete_item, GraphNode):
             delete_edges = delete_item.edges
             while delete_edges:
@@ -494,11 +493,18 @@ class GraphView(MyGraphicsView):
         elif isinstance(delete_item, Line):
             start_item = delete_item.start_item
             end_item = delete_item.end_item
-            start_item.remove_edge(delete_item)
-            end_item.remove_edge(delete_item)
+            if new_item:
+                start_item.replace_edge(delete_item, new_item)
+                end_item.replace_edge(delete_item, new_item)
+            else:
+                start_item.remove_edge(delete_item)
+                end_item.remove_edge(delete_item)
+            self.scene.removeItem(delete_item)
             self.item_group.pop_item(start_item, end_item)
             self.item_group.pop_item(end_item, start_item)
-            self.scene.removeItem(delete_item)
+
+    def replace_item(self, delete_item: Union[GraphNode, Line], new_item) -> None:
+        self.delete_item(delete_item, new_item=new_item)
 
     def connect_node(self, name1: str, name2: str) -> None:
         node1, node2 = self.nodes[name1], self.nodes[name2]
@@ -511,15 +517,15 @@ class GraphView(MyGraphicsView):
         node2.add_edge(new_edge)
         self.item_group.add_items(node1, node2)
         self.log.emit(f"connected node: {node1.name} to {node2.name}")
+        print("新创建时的引用次数:", sys.getrefcount(new_edge))
 
     def change_edge_type(self, edge_name: str) -> None:
+        print("change时引用次数", sys.getrefcount(self.pre_item))
         start_item = self.pre_item.start_item
         end_item = self.pre_item.end_item
-        self.delete_item(self.pre_item)
         new_edge = GraphicsLineItem.new_line(start_item, end_item, edge_name)
+        self.replace_item(self.pre_item, new_edge)
         self.scene.addItem(new_edge)
-        start_item.add_edge(new_edge)
-        end_item.add_edge(new_edge)
         self.item_group.add_items(start_item, end_item)
         self.log.emit(f"changed line: to {edge_name}")
         self.pre_item = new_edge
@@ -541,7 +547,16 @@ class GraphView(MyGraphicsView):
         if event_item:
             event_item = event_item.group()
         if self.traversal:
-            self.redraw()
+            for node in self.nodes.values():
+                font = QFont()
+                font.setFamily(self.font_family)
+                font.setPointSize(self.font_size)
+                node.set_text_font(font)
+                node.set_text_brush(self.font_color)
+                node.set_node_brush(node.DEFAULT_COLOR)
+                for edge in node.edges:
+                    edge.default()
+            self.traversal = False
 
         if self.mouse is Qt.MouseButton.LeftButton:
             # node
@@ -572,8 +587,9 @@ class GraphView(MyGraphicsView):
                 # create new node and connect to pre_item
                 new_node = self.add_node(event_pos)
                 if isinstance(self.pre_item, GraphNode) and self.pre_item.mode is NodeModeEnum.CREATOR:
+                    self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
                     self.connect_node(self.pre_item.name, new_node.name)
-                if isinstance(self.pre_item, GraphNode):
+                elif isinstance(self.pre_item, GraphNode):
                     self.pre_item.switch_mode(NodeModeEnum.DEFAULT)
         elif self.mouse is Qt.MouseButton.RightButton:
             if self.pre_item and isinstance(self.pre_item, GraphNode):
@@ -725,8 +741,10 @@ class GraphView(MyGraphicsView):
             node.set_text_font(font)
             node.set_text_brush(self.font_color)
             node.set_node_brush(node.DEFAULT_COLOR)
-            for edge in node.edges:
-                edge.default()
+            edges = node.edges.copy()
+            for edge in edges:
+                if edge.CLASS_NAME == self.edge_type:
+                    continue
                 self.pre_item = edge
                 self.change_edge_type(self.edge_type)
         self.pre_item = temp

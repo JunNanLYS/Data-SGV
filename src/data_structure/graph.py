@@ -26,6 +26,10 @@ class GraphNode(TextNodeItem):
         if edge in self.edges:
             self.edges.remove(edge)
 
+    def replace_edge(self, old, new):
+        index = self.edges.index(old)
+        self.edges[index] = new
+
     @property
     def name(self):
         return self._name
